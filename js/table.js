@@ -9,7 +9,7 @@ export function createTableModule(ctx){
   const Sound = ctx.Sound;
 
   // ===== DOM (lazy init) =====
-  let tableEl, potLabel, potCenter, actingTitle, streetLabel, blindLabel, toCallLabel, draftLabel, potBreakdownList;
+  let tableEl, potLabel, potCenter, actingTitle, streetLabel, blindLabel, toCallLabel, draftLabel;
   let betBtn, foldBtn, allinBtn, backBtn, nextBtn;
   let q25, q100, q500;
   let thumb, track;
@@ -24,7 +24,6 @@ export function createTableModule(ctx){
     blindLabel = document.getElementById("blindLabel");
     toCallLabel = document.getElementById("toCallLabel");
     draftLabel = document.getElementById("draftLabel");
-    potBreakdownList = document.getElementById("potBreakdownList");
 
     betBtn = document.getElementById("betBtn");
     foldBtn = document.getElementById("foldBtn");
@@ -195,39 +194,42 @@ export function createTableModule(ctx){
     return Number(S.handPot || 0);
   }
 
-  function renderPotBreakdownList(){
-    if(!potBreakdownList) return;
+  function getWinnerColorForSeat(seatNum){
+    const palette = [
+      "#22d3ee", "#f59e0b", "#34d399", "#fb7185",
+      "#60a5fa", "#f97316", "#a78bfa", "#facc15"
+    ];
+    const idx = Math.max(0, Number(seatNum || 1) - 1) % palette.length;
+    return palette[idx];
+  }
 
-    const rows = [];
+  function renderCenterPot(){
+    if(!potCenter) return;
+    const total = getPotTotal();
+
     if(S.handStreet === "Showdown"){
       ensureShowdownPots();
       const pots = S.potBreakdown || [];
-      for(let i=0; i<pots.length; i++){
-        const label = (i === 0) ? "Main pot" : `Side pot ${i}`;
-        const amount = Number(pots[i]?.amount || 0);
-        const winnerSeat = Number(S.potWinners?.[i] || 0);
-        const winnerText = winnerSeat > 0 ? `Seat ${winnerSeat}` : "Pending";
-        rows.push(
-          `<div class="row">` +
-            `<div class="left"><span class="tag">${label}</span><span>$${amount}</span></div>` +
-            `<span class="winner">${winnerText}</span>` +
-          `</div>`
-        );
-      }
-    }else{
-      const total = getPotTotal();
-      if(total > 0){
-        rows.push(
-          `<div class="row">` +
-            `<div class="left"><span class="tag">Pot</span><span>$${total}</span></div>` +
-            `<span></span>` +
-          `</div>`
-        );
+      if(pots.length){
+        const rows = pots.map((pot, i) => {
+          const label = (i === 0) ? "Main pot" : `Side pot ${i}`;
+          const amount = Number(pot?.amount || 0);
+          const winnerSeat = Number(S.potWinners?.[i] || 0);
+          const wonClass = winnerSeat > 0 ? " won" : "";
+          const style = winnerSeat > 0 ? ` style=\"--winner-color:${getWinnerColorForSeat(winnerSeat)}\"` : "";
+          return (
+            `<div class="pot-line${wonClass}"${style}>` +
+              `<span class="pot-label">${label}</span>` +
+              `<span class="pot-amount">$${amount}</span>` +
+            `</div>`
+          );
+        }).join("");
+        potCenter.innerHTML = `<div class="pot-center-list">${rows}</div>`;
+        return;
       }
     }
 
-    potBreakdownList.innerHTML = rows.join("");
-    potBreakdownList.classList.toggle("show", rows.length > 0);
+    potCenter.innerHTML = `<div class="pot-total">$${total}</div><small>POT</small>`;
   }
 
   function getSeatStack(seatNum){
@@ -331,8 +333,8 @@ export function createTableModule(ctx){
     const alive = getActiveInHandSeats();
     if(alive.length <= 1) return false;
     const seatsWithChips = alive.filter(seat => getSeatStack(seat) > 0).length;
-    // If at most one player can still bet/act, run out directly to showdown.
-    return seatsWithChips <= 1;
+    // Run out directly only when nobody can still act (all remaining players are all-in).
+    return seatsWithChips === 0;
   }
 
   function moveToShowdown(){
@@ -494,7 +496,7 @@ export function createTableModule(ctx){
     if(draft > 0){
       return `Bet ${draft}`;
     }
-    return "Bet";
+    return "Check";
   }
 
   function clearBBOptionIfActed(seatNum){
@@ -575,6 +577,8 @@ export function createTableModule(ctx){
       return;
     }
 
+    // Track each draft increment so Back can undo draft edits too.
+    pushHistory();
     S.betDraft = next;
     Sound.tick();
     updateUI();
@@ -685,6 +689,12 @@ export function createTableModule(ctx){
       return true;
     }
 
+    if(isAllInRunout()){
+      moveToShowdown();
+      updateUI();
+      return true;
+    }
+
     // âœ… gom bet street hiá»‡n táº¡i vÃ o pot, reset bet floats
     collectStreetBetsIntoPot();
 
@@ -695,6 +705,9 @@ export function createTableModule(ctx){
 
     // set acting seat Ä‘áº§u vÃ²ng má»›i
     S.actingSeat = (S.handStreet === "Showdown") ? null : firstToActForStreet(S.handStreet);
+    if(S.handStreet !== "Showdown" && !S.actingSeat && isAllInRunout()){
+      moveToShowdown();
+    }
     if(S.handStreet === "Showdown") ensureShowdownPots();
 
     updateUI();
@@ -825,6 +838,7 @@ export function createTableModule(ctx){
       s.el.style.transform = 'translate(-50%,-50%)';
 
       s.el.classList.remove('occupied','acting','winner','folded');
+      s.el.style.removeProperty("--winner-color");
 
       const uid = S.seatState[i]?.player_uid;
       const hs = S.handState[i];
@@ -839,7 +853,10 @@ export function createTableModule(ctx){
 
       if(S.handActive && hs?.inHand === false) s.el.classList.add('folded');
       if(S.handActive && S.actingSeat === i) s.el.classList.add('acting');
-      if((S.potWinners || []).includes(i) || S.winnerSeat === i) s.el.classList.add('winner');
+      if((S.potWinners || []).includes(i) || S.winnerSeat === i){
+        s.el.classList.add('winner');
+        s.el.style.setProperty("--winner-color", getWinnerColorForSeat(i));
+      }
 
       const bf = S.betFloats[i]?.el;
       if(bf){
@@ -874,7 +891,7 @@ export function createTableModule(ctx){
 
     const pot = getPotTotal();
     if(potLabel) potLabel.textContent = String(pot);
-    if(potCenter) potCenter.innerHTML = `$${pot}<small>POT</small>`;
+    renderCenterPot();
 
     const toCall = (S.handActive && S.actingSeat) ? getToCallForSeat(S.actingSeat) : 0;
     if(toCallLabel) toCallLabel.textContent = String(toCall);
@@ -933,7 +950,6 @@ export function createTableModule(ctx){
       track.classList.toggle("is-locked", locked);
     }
 
-    renderPotBreakdownList();
     renderSeats();
     window.__tourEngine?.init?.(); // harmless
   }
@@ -1252,7 +1268,10 @@ export function createTableModule(ctx){
 
         const lastSeat = S.potWinners?.[S.potWinners.length - 1];
         if(lastSeat === i){
-          S.potWinners.pop();
+          // Undo one tap group: remove trailing pots won by the same seat.
+          while(S.potWinners.length && S.potWinners[S.potWinners.length - 1] === i){
+            S.potWinners.pop();
+          }
           S.winnerSeat = S.potWinners[0] ?? null;
           Sound.tick();
           updateUI();
@@ -1272,7 +1291,15 @@ export function createTableModule(ctx){
           return;
         }
 
+        // Pick current pending pot, then auto-fill next pending pots
+        // that this seat is also eligible to win.
         S.potWinners.push(i);
+        while(S.potWinners.length < S.potBreakdown.length){
+          const nextPotIndex = S.potWinners.length;
+          const nextEligible = S.potBreakdown[nextPotIndex]?.eligibleSeats || [];
+          if(!nextEligible.includes(i)) break;
+          S.potWinners.push(i);
+        }
         S.winnerSeat = S.potWinners[0] ?? null;
         Sound.success();
         updateUI();
