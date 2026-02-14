@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Tour Counter</title>
+
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+<div id="panelView">
+  <div class="app">
+    <div class="table-area">
+      <div class="table-wrap">
+        <div class="table" id="table">
+          <div id="tableNameLabel">
+            <div id="rivebaseMark">Rivebase</div>
+            <div id="potCenter">$0<small>POT</small></div>
+          </div>
+
+          <div id="dealerToken" aria-hidden="true">
+            <div class="dealer-tag">D</div>
+            <div class="dealer-chip"></div>
+          </div>
+        </div>
+
+        <div class="login-row">
+          <button id="tableBtn" class="login-btn red" type="button">
+            <span id="tableBtnText">Table Login</span>
+            <span class="progressBar"><span id="tableProgress" class="progressFill"></span></span>
+          </button>
+
+          <button id="dealerBtn" class="login-btn red" type="button">
+            <span id="dealerBtnText">Dealer Login</span>
+            <span class="progressBar"><span id="dealerProgress" class="progressFill"></span></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="cpTop">
+        <div>
+          <div class="cpTitle" id="actingTitle">No seat selected</div>
+          <div class="cpSub" id="streetLabel">Preflop</div>
+        </div>
+        <div class="pill">Blinds <b id="blindLabel">25 / 50</b></div>
+      </div>
+
+      <div class="pills">
+        <div class="pill">Pot <b id="potLabel">0</b></div>
+        <div class="pill">To Call <b id="toCallLabel">0</b></div>
+        <div class="pill">Draft <b id="draftLabel">0</b></div>
+      </div>
+
+      <div class="quickRow">
+        <button class="quickBtn" id="q25" type="button">+25</button>
+        <button class="quickBtn" id="q100" type="button">+100</button>
+        <button class="quickBtn" id="q500" type="button">+500</button>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn bet" id="betBtn" type="button">Bet</button>
+        <button class="btn call" id="callBtn" type="button">Call</button>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn fold" id="foldBtn" type="button">Fold</button>
+        <button class="btn allin" id="allinBtn" type="button">All-in</button>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn back" id="backBtn" type="button">Back</button>
+        <button class="btn next" id="nextBtn" type="button">Next</button>
+      </div>
+
+      <div class="slide-container">
+        <div class="slide-track" id="newHandTrack">
+          <span class="slide-text" id="slideText">Slide to New Hand</span>
+          <div class="slide-thumb" id="slideThumb"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:8px; font-size:12px; color:rgba(234,240,255,.55); font-weight:1000;">
+        Click seat để chọn Winner → kéo để trả pot + qua hand mới.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE MODAL -->
+<div id="tableModal" class="modal">
+  <div class="box">
+    <div class="top">
+      <div class="title">Table Login</div>
+      <button id="tableClose" class="close" type="button">✕</button>
+    </div>
+
+    <select id="tableSelect">
+      <option value="">Loading…</option>
+    </select>
+
+    <div class="pin-display" id="tablePinDots" style="margin-top:12px">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+
+    <div class="keypad">
+      <button onclick="tablePress(1)">1</button>
+      <button onclick="tablePress(2)">2</button>
+      <button onclick="tablePress(3)">3</button>
+      <button onclick="tablePress(4)">4</button>
+      <button onclick="tablePress(5)">5</button>
+      <button onclick="tablePress(6)">6</button>
+      <button onclick="tablePress(7)">7</button>
+      <button onclick="tablePress(8)">8</button>
+      <button onclick="tablePress(9)">9</button>
+      <button onclick="tableBack()">←</button>
+      <button onclick="tablePress(0)">0</button>
+      <button onclick="submitTableLogin()">OK</button>
+    </div>
+
+    <div id="tableErr" class="err">❌ Wrong PIN</div>
+  </div>
+</div>
+
+<!-- DEALER MODAL -->
+<div id="dealerModal" class="modal">
+  <div class="box">
+    <div class="top">
+      <div class="title">Dealer Login</div>
+      <button id="dealerClose" class="close" type="button">✕</button>
+    </div>
+
+    <select id="dealerSelect">
+      <option value="">Loading…</option>
+    </select>
+
+    <div class="pin-display" id="dealerPinDots" style="margin-top:12px">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+
+    <div class="keypad">
+      <button onclick="dealerPress(1)">1</button>
+      <button onclick="dealerPress(2)">2</button>
+      <button onclick="dealerPress(3)">3</button>
+      <button onclick="dealerPress(4)">4</button>
+      <button onclick="dealerPress(5)">5</button>
+      <button onclick="dealerPress(6)">6</button>
+      <button onclick="dealerPress(7)">7</button>
+      <button onclick="dealerPress(8)">8</button>
+      <button onclick="dealerPress(9)">9</button>
+      <button onclick="dealerBack()">←</button>
+      <button onclick="dealerPress(0)">0</button>
+      <button onclick="submitDealerLogin()">OK</button>
+    </div>
+
+    <div id="dealerErr" class="err">❌ Wrong PIN</div>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div id="qrModal">
+  <div style="width:260px;background:#000;padding:12px;border-radius:12px">
+    <div id="qr-reader" style="width:100%; min-height:240px"></div>
+    <button id="closeQR" style="
+      width:100%;
+      margin-top:10px;
+      padding:10px;
+      border:none;
+      border-radius:8px;
+      background:#374151;
+      color:#fff;
+      font-size:16px;
+    ">Cancel</button>
+  </div>
+</div>
+
+<!-- Keep UMD libs (no big refactor) -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script type="module" src="./js/app.js"></script>
+
+
+
+</body>
+</html>

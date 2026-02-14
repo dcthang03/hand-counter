@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Tour Counter</title>
+
+
+</head>
+
+<body>
+<div id="panelView">
+  <div class="app">
+    <div class="table-area">
+      <div class="table-wrap">
+        <div class="table" id="table">
+          <div id="tableNameLabel">
+            <div id="rivebaseMark">Rivebase</div>
+            <div id="potCenter">$0<small>POT</small></div>
+          </div>
+
+          <div id="dealerToken" aria-hidden="true">
+            <div class="dealer-tag">D</div>
+            <div class="dealer-chip"></div>
+          </div>
+        </div>
+
+        <div class="login-row">
+          <button id="tableBtn" class="login-btn red" type="button">
+            <span id="tableBtnText">Table Login</span>
+            <span class="progressBar"><span id="tableProgress" class="progressFill"></span></span>
+          </button>
+
+          <button id="dealerBtn" class="login-btn red" type="button">
+            <span id="dealerBtnText">Dealer Login</span>
+            <span class="progressBar"><span id="dealerProgress" class="progressFill"></span></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="cpTop">
+        <div>
+          <div class="cpTitle" id="actingTitle">No seat selected</div>
+          <div class="cpSub" id="streetLabel">Preflop</div>
+        </div>
+        <div class="pill">Blinds <b id="blindLabel">25 / 50</b></div>
+      </div>
+
+      <div class="pills">
+        <div class="pill">Pot <b id="potLabel">0</b></div>
+        <div class="pill">To Call <b id="toCallLabel">0</b></div>
+        <div class="pill">Draft <b id="draftLabel">0</b></div>
+      </div>
+
+      <div class="quickRow">
+        <button class="quickBtn" id="q25" type="button">+25</button>
+        <button class="quickBtn" id="q100" type="button">+100</button>
+        <button class="quickBtn" id="q500" type="button">+500</button>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn bet" id="betBtn" type="button">Bet</button>
+        <button class="btn call" id="callBtn" type="button">Call</button>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn fold" id="foldBtn" type="button">Fold</button>
+        <button class="btn allin" id="allinBtn" type="button">All-in</button>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn back" id="backBtn" type="button">Back</button>
+        <button class="btn next" id="nextBtn" type="button">Next</button>
+      </div>
+
+      <div class="slide-container">
+        <div class="slide-track" id="newHandTrack">
+          <span class="slide-text" id="slideText">Slide to New Hand</span>
+          <div class="slide-thumb" id="slideThumb"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:8px; font-size:12px; color:rgba(234,240,255,.55); font-weight:1000;">
+        Click seat để chọn Winner → kéo để trả pot + qua hand mới.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE MODAL -->
+<div id="tableModal" class="modal">
+  <div class="box">
+    <div class="top">
+      <div class="title">Table Login</div>
+      <button id="tableClose" class="close" type="button">✕</button>
+    </div>
+
+    <select id="tableSelect">
+      <option value="">Loading…</option>
+    </select>
+
+    <div class="pin-display" id="tablePinDots" style="margin-top:12px">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+
+    <div class="keypad">
+      <button onclick="tablePress(1)">1</button>
+      <button onclick="tablePress(2)">2</button>
+      <button onclick="tablePress(3)">3</button>
+      <button onclick="tablePress(4)">4</button>
+      <button onclick="tablePress(5)">5</button>
+      <button onclick="tablePress(6)">6</button>
+      <button onclick="tablePress(7)">7</button>
+      <button onclick="tablePress(8)">8</button>
+      <button onclick="tablePress(9)">9</button>
+      <button onclick="tableBack()">←</button>
+      <button onclick="tablePress(0)">0</button>
+      <button onclick="submitTableLogin()">OK</button>
+    </div>
+
+    <div id="tableErr" class="err">❌ Wrong PIN</div>
+  </div>
+</div>
+
+<!-- DEALER MODAL -->
+<div id="dealerModal" class="modal">
+  <div class="box">
+    <div class="top">
+      <div class="title">Dealer Login</div>
+      <button id="dealerClose" class="close" type="button">✕</button>
+    </div>
+
+    <select id="dealerSelect">
+      <option value="">Loading…</option>
+    </select>
+
+    <div class="pin-display" id="dealerPinDots" style="margin-top:12px">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+
+    <div class="keypad">
+      <button onclick="dealerPress(1)">1</button>
+      <button onclick="dealerPress(2)">2</button>
+      <button onclick="dealerPress(3)">3</button>
+      <button onclick="dealerPress(4)">4</button>
+      <button onclick="dealerPress(5)">5</button>
+      <button onclick="dealerPress(6)">6</button>
+      <button onclick="dealerPress(7)">7</button>
+      <button onclick="dealerPress(8)">8</button>
+      <button onclick="dealerPress(9)">9</button>
+      <button onclick="dealerBack()">←</button>
+      <button onclick="dealerPress(0)">0</button>
+      <button onclick="submitDealerLogin()">OK</button>
+    </div>
+
+    <div id="dealerErr" class="err">❌ Wrong PIN</div>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div id="qrModal">
+  <div style="width:260px;background:#000;padding:12px;border-radius:12px">
+    <div id="qr-reader" style="width:100%; min-height:240px"></div>
+    <button id="closeQR" style="
+      width:100%;
+      margin-top:10px;
+      padding:10px;
+      border:none;
+      border-radius:8px;
+      background:#374151;
+      color:#fff;
+      font-size:16px;
+    ">Cancel</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+/* ✅ extra anti copy (mobile) */
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('dragstart', e => e.preventDefault());
+
+/* ===== LOCK ZOOM ===== */
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('gestureend', e => e.preventDefault());
+
+/* ===== CONFIG ===== */
+const HOLD_TIME = 700;
+const SEAT_COUNT = 9;
+const TOP_SEAT = 5;
+const SEAT_SIZE = 60;
+const TABLE_BORDER = 4;
+const SAFE_PADDING = 8;
+
+/* ===== BLINDS (fixed) ===== */
+const SB = 25;
+const BB = 50;
+
+/* ===== SUPABASE ===== */
+const SUPABASE_URL = 'https://ymtmipkmknnsqleahlmi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdG1pcGtta25uc3FsZWFobG1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwOTU1MjUsImV4cCI6MjA4NTY3MTUyNX0.7pEza-TKBKJ_xqdBu93nLo-PRaHDcDIxW-bjZnrFJxw';
+const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* =====================
+   MINI SOUND SYSTEM
+   ===================== */
+let __audioCtx = null;
+function __getAudioCtx(){
+  if(!__audioCtx) __audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(__audioCtx.state === "suspended") __audioCtx.resume().catch(()=>{});
+  return __audioCtx;
+}
+function __beep({ freqs=[880], type="sine", dur=0.08, gain=0.035, attack=0.005 } = {}){
+  const ctx = __getAudioCtx();
+  const now = ctx.currentTime;
+
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.connect(ctx.destination);
+
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain), now + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(attack + 0.01, dur));
+
+  freqs.forEach(f=>{
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(f, now);
+    o.connect(g);
+    o.start(now);
+    o.stop(now + dur);
+  });
+}
+const Sound = {
+  tick(){    __beep({ freqs:[1760], type:"sine",    dur:0.045, gain:0.020, attack:0.003 }); },
+  success(){ __beep({ freqs:[880,1320], type:"sine", dur:0.090, gain:0.030, attack:0.004 }); },
+  reject(){  __beep({ freqs:[220], type:"triangle",  dur:0.100, gain:0.030, attack:0.004 }); },
+  error(){
+    __beep({ freqs:[392], type:"square", dur:0.055, gain:0.020, attack:0.003 });
+    setTimeout(()=> __beep({ freqs:[330], type:"square", dur:0.055, gain:0.020, attack:0.003 }), 85);
+  }
+};
+window.addEventListener("pointerdown", () => { __getAudioCtx(); }, { once:true });
+
+/* ===== STATE ===== */
+let isSubmitting = false;
+
+let TABLE_UID = null;
+let TABLE_NAME = null;
+let tablePin = "";
+
+let DEALER_UID = null;
+let DEALER_NAME = null;
+let dealerPin = "";
+
+const seatState = {};     // seatState[seat] = { player_uid }
+const seats = {};         // seats[seat] = { el, stakeEl, seatNoEl }
+const betFloats = {};     // betFloats[seat] = { el }
+
+let holdTimer = null;
+let didHold = false;
+let qrScanner = null;
+let seatChannel = null;
+
+/* ===== stake cache ===== */
+const baseStakeByUid = {}; // from players.stake_tour
+const stackByUid = {};     // local working stack
+let stakeRefreshTimer = null;
+
+/* ===== hand state ===== */
+let handActive = false;
+let actingSeat = null;
+let handStreet = "Preflop";
+const handState = {};      // handState[seat] = { inHand, contributed }
+let handHistory = [];
+let betDraft = 0;
+let winnerSeat = null;
+
+/* ✅ CALL target: track last aggressor / last bet target amount */
+let betTarget = 0; // current target to call (ignores folded seats)
+
+/* ===== dealer token ===== */
+let dealerPosSeat = 1;
+const dealerTokenEl = document.getElementById("dealerToken");
+let tableStateChannel = null;
+
+/* ===== DOM ===== */
+const tableEl = document.getElementById('table');
+
+const tableBtn = document.getElementById('tableBtn');
+const tableBtnText = document.getElementById('tableBtnText');
+const tableProgress = document.getElementById('tableProgress');
+
+const dealerBtn = document.getElementById('dealerBtn');
+const dealerBtnText = document.getElementById('dealerBtnText');
+const dealerProgress = document.getElementById('dealerProgress');
+
+const tableModal = document.getElementById('tableModal');
+const tableClose = document.getElementById('tableClose');
+const tableSelect = document.getElementById('tableSelect');
+const tableErrEl = document.getElementById('tableErr');
+
+const dealerModal = document.getElementById('dealerModal');
+const dealerClose = document.getElementById('dealerClose');
+const dealerSelect = document.getElementById('dealerSelect');
+const dealerErrEl = document.getElementById('dealerErr');
+
+const potLabel = document.getElementById("potLabel");
+const potCenter = document.getElementById("potCenter");
+const actingTitle = document.getElementById("actingTitle");
+const streetLabel = document.getElementById("streetLabel");
+const blindLabel = document.getElementById("blindLabel");
+const toCallLabel = document.getElementById("toCallLabel");
+const draftLabel = document.getElementById("draftLabel");
+
+const betBtn = document.getElementById("betBtn");
+const callBtn = document.getElementById("callBtn");
+const foldBtn = document.getElementById("foldBtn");
+const allinBtn = document.getElementById("allinBtn");
+const backBtn = document.getElementById("backBtn");
+const nextBtn = document.getElementById("nextBtn");
+
+const q25 = document.getElementById("q25");
+const q100 = document.getElementById("q100");
+const q500 = document.getElementById("q500");
+
+const thumb = document.getElementById('slideThumb');
+const track = thumb.parentElement;
+
+/* ===== Helpers ===== */
+function isTableLoggedIn(){ return !!TABLE_UID; }
+function isDealerLoggedIn(){ return !!DEALER_UID; }
+
+function setDots(containerId, len){
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.querySelectorAll('.pin-dot').forEach((d,i)=> d.classList.toggle('filled', i < len));
+}
+
+function setTableUI(){
+  if (isTableLoggedIn()){
+    tableBtn.classList.remove('red','gray');
+    tableBtn.classList.add('green');
+    tableBtnText.textContent = (TABLE_NAME || TABLE_UID || "Table");
+  }else{
+    tableBtn.classList.remove('green','gray');
+    tableBtn.classList.add('red');
+    tableBtnText.textContent = "Table Login";
+  }
+}
+function setDealerUI(){
+  if (!isTableLoggedIn()){
+    dealerBtn.classList.remove('green','red');
+    dealerBtn.classList.add('gray');
+    dealerBtnText.textContent = "Table Login";
+    return;
+  }
+  if (isDealerLoggedIn()){
+    dealerBtn.classList.remove('red','gray');
+    dealerBtn.classList.add('green');
+    dealerBtnText.textContent = (DEALER_NAME || DEALER_UID || "Dealer");
+  }else{
+    dealerBtn.classList.remove('green','gray');
+    dealerBtn.classList.add('red');
+    dealerBtnText.textContent = "Dealer Login";
+  }
+}
+
+function requireTable(){
+  if (isTableLoggedIn()) return true;
+  alert("Table login required");
+  openTableModal();
+  return false;
+}
+function requireDealer(){
+  if (!requireTable()) return false;
+  if (isDealerLoggedIn()) return true;
+  alert("Dealer login required");
+  openDealerModal();
+  return false;
+}
+
+/* ===== Seat geometry ===== */
+function seatAngleFor(i){
+  return (Math.PI*2/SEAT_COUNT)*(i - TOP_SEAT) - Math.PI/2;
+}
+function isSeatOccupied(seatNum){
+  return !!seatState?.[seatNum]?.player_uid;
+}
+function findNextOccupiedSeat(fromSeat){
+  for(let step=1; step<=SEAT_COUNT; step++){
+    const s = ((fromSeat - 1 + step) % SEAT_COUNT) + 1;
+    if(isSeatOccupied(s)) return s;
+  }
+  return null;
+}
+function getOccupiedSeatsClockwiseFrom(startSeat){
+  const out = [];
+  for(let step=1; step<=SEAT_COUNT; step++){
+    const s = ((startSeat - 1 + step) % SEAT_COUNT) + 1;
+    if(isSeatOccupied(s)) out.push(s);
+  }
+  return out;
+}
+
+/* ===== Dealer token position ===== */
+function positionDealerToken(){
+  if(!dealerTokenEl || !tableEl) return;
+
+  const rect = tableEl.getBoundingClientRect();
+  const cx = rect.width / 2;
+  const cy = rect.height / 2;
+
+  const DEALER_SIZE = 18;
+  const ORBIT_GAP = 18;
+
+  const rX = cx - (DEALER_SIZE/2) - TABLE_BORDER - SAFE_PADDING - ORBIT_GAP;
+  const rY = cy - (DEALER_SIZE/2) - TABLE_BORDER - SAFE_PADDING - ORBIT_GAP;
+
+  const a = seatAngleFor(dealerPosSeat);
+  const x = cx + Math.cos(a) * rX;
+  const y = cy + Math.sin(a) * rY;
+
+  dealerTokenEl.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+}
+
+/* ===== Bet float positions (smaller orbit) ===== */
+function positionBetFloat(seatNum){
+  const bf = betFloats[seatNum]?.el;
+  if(!bf) return;
+
+  const rect = tableEl.getBoundingClientRect();
+  const cx = rect.width / 2;
+  const cy = rect.height / 2;
+
+  const ORBIT_GAP = 42; // smaller orbit than dealer token
+  const rX = cx - TABLE_BORDER - SAFE_PADDING - ORBIT_GAP;
+  const rY = cy - TABLE_BORDER - SAFE_PADDING - ORBIT_GAP;
+
+  const a = seatAngleFor(seatNum);
+  const x = cx + Math.cos(a) * rX;
+  const y = cy + Math.sin(a) * rY;
+
+  bf.style.left = x + "px";
+  bf.style.top  = y + "px";
+}
+
+/* ===== Stakes from DB ===== */
+async function refreshStakesForOccupiedSeats(){
+  if(!TABLE_UID) return;
+
+  const uids = [];
+  for(let i=1;i<=SEAT_COUNT;i++){
+    const uid = seatState?.[i]?.player_uid;
+    if(uid) uids.push(uid);
+  }
+  if(!uids.length){
+    renderSeats();
+    return;
+  }
+
+  const need = uids.filter(uid => baseStakeByUid[uid] === undefined);
+  if(need.length){
+    const { data, error } = await sbClient
+      .from("players")
+      .select("player_uid, stake_tour")
+      .in("player_uid", need);
+
+    if(error){
+      console.error("refreshStakes error:", error);
+      return;
+    }
+    (data || []).forEach(r => {
+      baseStakeByUid[r.player_uid] = Number(r.stake_tour ?? 0);
+    });
+  }
+
+  // init stacks if missing
+  for(let i=1;i<=SEAT_COUNT;i++){
+    const uid = seatState?.[i]?.player_uid;
+    if(!uid) continue;
+    if(stackByUid[uid] === undefined){
+      stackByUid[uid] = Number(baseStakeByUid[uid] ?? 0);
+    }
+  }
+
+  renderSeats();
+  updateUI();
+}
+
+/* ===== Hand calc ===== */
+function resetHandState(){
+  for(let i=1;i<=SEAT_COUNT;i++){
+    handState[i] = { inHand: true, contributed: 0 };
+  }
+  handHistory = [];
+  handActive = false;
+  actingSeat = null;
+  handStreet = "Preflop";
+  betDraft = 0;
+  winnerSeat = null;
+  betTarget = 0;
+  streetLabel.textContent = handStreet;
+}
+
+function getPotTotal(){
+  let pot = 0;
+  for(let i=1;i<=SEAT_COUNT;i++){
+    pot += Number(handState[i]?.contributed || 0);
+  }
+  return pot;
+}
+
+function computeUTGSeat(){
+  const occ = getOccupiedSeatsClockwiseFrom(dealerPosSeat);
+  if(occ.length < 3) return occ[0] ?? null;
+  return occ[2];
+}
+
+function findNextActingSeat(fromSeat){
+  if(!handActive) return null;
+  for(let step=1; step<=SEAT_COUNT; step++){
+    const s = ((fromSeat - 1 + step) % SEAT_COUNT) + 1;
+    if(!isSeatOccupied(s)) continue;
+    if(handState[s]?.inHand === false) continue;
+    return s;
+  }
+  return null;
+}
+
+function applyBlindToSeat(seatNum, amount){
+  const uid = seatState?.[seatNum]?.player_uid;
+  if(!uid) return;
+
+  stackByUid[uid] = Number(stackByUid[uid] ?? 0) - Number(amount);
+  handState[seatNum].contributed = Number(handState[seatNum].contributed || 0) + Number(amount);
+}
+
+function recomputeBetTarget(){
+  // ✅ ignore folded seats (inHand === false)
+  let m = 0;
+  for(let i=1;i<=SEAT_COUNT;i++){
+    if(!isSeatOccupied(i)) continue;
+    if(handState[i]?.inHand === false) continue;
+    m = Math.max(m, Number(handState[i]?.contributed || 0));
+  }
+  betTarget = m;
+}
+
+function getToCallForSeat(seatNum){
+  // ✅ call target is betTarget (latest bet level), NOT counting folded seats
+  const cur = Number(handState?.[seatNum]?.contributed || 0);
+  return Math.max(0, Number(betTarget || 0) - cur);
+}
+
+function pushHistory(){
+  handHistory.push({
+    actingSeat,
+    handStreet,
+    betDraft,
+    winnerSeat,
+    betTarget,
+    stackByUid: JSON.parse(JSON.stringify(stackByUid)),
+    handState: JSON.parse(JSON.stringify(handState)),
+    dealerPosSeat
+  });
+}
+function popHistory(){
+  const snap = handHistory.pop();
+  if(!snap) return false;
+
+  actingSeat = snap.actingSeat;
+  handStreet = snap.handStreet;
+  betDraft = snap.betDraft;
+  winnerSeat = snap.winnerSeat;
+  betTarget = snap.betTarget;
+  dealerPosSeat = snap.dealerPosSeat;
+
+  Object.keys(stackByUid).forEach(k => delete stackByUid[k]);
+  Object.keys(snap.stackByUid).forEach(k => stackByUid[k] = snap.stackByUid[k]);
+
+  for(let i=1;i<=SEAT_COUNT;i++){
+    handState[i] = snap.handState[i] || { inHand:true, contributed:0 };
+  }
+  handActive = true;
+
+  positionDealerToken();
+  return true;
+}
+
+function startNewHandLocal(){
+  resetHandState();
+  handActive = true;
+
+  // init stacks if missing
+  for(let i=1;i<=SEAT_COUNT;i++){
+    const uid = seatState?.[i]?.player_uid;
+    if(!uid) continue;
+    if(stackByUid[uid] === undefined){
+      stackByUid[uid] = Number(baseStakeByUid[uid] ?? 0);
+    }
+  }
+
+  const occ = getOccupiedSeatsClockwiseFrom(dealerPosSeat);
+  const sbSeat = occ[0] ?? null;
+  const bbSeat = occ[1] ?? null;
+
+  if(sbSeat) applyBlindToSeat(sbSeat, SB);
+  if(bbSeat) applyBlindToSeat(bbSeat, BB);
+
+  // set initial bet target = BB level (players already contributed SB/BB)
+  recomputeBetTarget();
+
+  actingSeat = computeUTGSeat();
+  betDraft = 0;
+
+  updateUI();
+  renderSeats();
+}
+
+/* ===== Winner payout + advance dealer + new hand ===== */
+async function advanceDealerButtonAndNewHand(){
+  if(!requireDealer()) return;
+
+  // payout pot to winner
+  const pot = getPotTotal();
+  if(handActive && winnerSeat && isSeatOccupied(winnerSeat) && pot > 0){
+    const uidW = seatState?.[winnerSeat]?.player_uid;
+    if(uidW){
+      stackByUid[uidW] = Number(stackByUid[uidW] ?? 0) + pot;
+    }
+  }
+
+  winnerSeat = null;
+  betDraft = 0;
+
+  const nextDealer = findNextOccupiedSeat(dealerPosSeat) ?? dealerPosSeat;
+  dealerPosSeat = nextDealer;
+  positionDealerToken();
+
+  try{
+    await sbClient.rpc('advance_table_state', {
+      p_table_uid: TABLE_UID,
+      p_dealer_uid: DEALER_UID,
+      p_next_seat: nextDealer
+    });
+  }catch(e){
+    console.error("advance_table_state error:", e);
+  }
+
+  startNewHandLocal();
+}
+
+/* ===== Draft helpers ===== */
+function promptBetAmount(defaultValue=0){
+  const v = prompt("Bet amount:", String(defaultValue || ""));
+  if(v === null) return null;
+  const n = Number(String(v).replace(/[^0-9]/g,''));
+  if(!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+function addToDraft(x){
+  if(!requireDealer()) return;
+  if(!handActive || !actingSeat) return;
+
+  const uid = seatState?.[actingSeat]?.player_uid;
+  if(!uid) return;
+
+  const stack = Number(stackByUid[uid] ?? 0);
+  const next = betDraft + Number(x);
+
+  if(next > stack){
+    Sound.error();
+    alert("Not enough stack");
+    return;
+  }
+
+  betDraft = next;
+  Sound.tick();
+  updateUI();
+}
+
+/* ===== Commit draft (trừ chip ngay lúc bet) ===== */
+function commitDraftIfAny(){
+  if(!handActive || !actingSeat) return;
+
+  if(betDraft <= 0) return;
+
+  const uid = seatState?.[actingSeat]?.player_uid;
+  if(!uid) return;
+
+  const stack = Number(stackByUid[uid] ?? 0);
+  if(betDraft > stack){
+    Sound.error();
+    alert("Not enough stack");
+    return;
+  }
+
+  // subtract immediately
+  stackByUid[uid] = stack - betDraft;
+  handState[actingSeat].contributed = Number(handState[actingSeat].contributed || 0) + betDraft;
+
+  // ✅ update betTarget based on latest bet level (ignores folded seats)
+  recomputeBetTarget();
+
+  betDraft = 0;
+}
+
+/* ===== UI render ===== */
+function renderSeats(){
+  const rect = tableEl.getBoundingClientRect();
+  const cx = rect.width / 2;
+  const cy = rect.height / 2;
+  const rX = cx - SEAT_SIZE/2 - TABLE_BORDER - SAFE_PADDING + 50;
+  const rY = cy - SEAT_SIZE/2 - TABLE_BORDER - SAFE_PADDING + 50;
+
+  for(let i=1;i<=SEAT_COUNT;i++){
+    const s = seats[i];
+    if(!s?.el) continue;
+
+    const angle = (Math.PI*2/SEAT_COUNT)*(i-TOP_SEAT) - Math.PI/2;
+
+    s.el.style.left = (cx + Math.cos(angle)*rX) + 'px';
+    s.el.style.top  = (cy + Math.sin(angle)*rY) + 'px';
+    s.el.style.transform = 'translate(-50%,-50%)';
+
+    s.el.classList.remove('occupied','acting','winner','folded');
+
+    const uid = seatState[i]?.player_uid;
+    const hs = handState[i];
+
+    if(uid){
+      s.el.classList.add('occupied');
+      const stack = Number(stackByUid[uid] ?? 0);
+      s.stakeEl.textContent = isFinite(stack) ? String(stack) : "-";
+    }else{
+      s.stakeEl.textContent = "-";
+    }
+
+    if(handActive && hs?.inHand === false) s.el.classList.add('folded');
+    if(handActive && actingSeat === i) s.el.classList.add('acting');
+    if(winnerSeat === i) s.el.classList.add('winner');
+
+    // bet float show: contributed or draft
+    const bf = betFloats[i]?.el;
+    if(bf){
+      let show = false;
+      let text = "";
+      let draft = false;
+
+      const contributed = Number(handState[i]?.contributed || 0);
+      if(contributed > 0){
+        show = true;
+        text = String(contributed);
+      }
+      if(handActive && actingSeat === i && betDraft > 0){
+        show = true;
+        text = String((Number(handState[i]?.contributed || 0) + betDraft));
+        draft = true;
+      }
+
+      bf.textContent = text;
+      bf.classList.toggle("show", show);
+      bf.classList.toggle("draft", draft);
+      positionBetFloat(i);
+    }
+  }
+
+  positionDealerToken();
+}
+
+function updateUI(){
+  blindLabel.textContent = `${SB} / ${BB}`;
+  streetLabel.textContent = handStreet;
+
+  const pot = getPotTotal();
+  potLabel.textContent = String(pot);
+  potCenter.innerHTML = `$${pot}<small>POT</small>`;
+
+  const toCall = (handActive && actingSeat) ? getToCallForSeat(actingSeat) : 0;
+  toCallLabel.textContent = String(toCall);
+  draftLabel.textContent = String(betDraft);
+
+  if(handActive && actingSeat){
+    const uid = seatState?.[actingSeat]?.player_uid;
+    actingTitle.textContent = uid ? `Acting: Seat ${actingSeat} • $${stackByUid[uid] ?? 0}` : `Acting: Seat ${actingSeat}`;
+  }else{
+    actingTitle.textContent = "No seat selected";
+  }
+
+  const disabled = (!isDealerLoggedIn() || !handActive || !actingSeat || isSubmitting);
+  [betBtn, callBtn, foldBtn, allinBtn, nextBtn].forEach(b => {
+    b.disabled = disabled;
+    b.style.opacity = b.disabled ? 0.55 : 1;
+  });
+
+  backBtn.disabled = (!isDealerLoggedIn() || handHistory.length === 0);
+  backBtn.style.opacity = backBtn.disabled ? 0.55 : 1;
+
+  renderSeats();
+}
+
+/* ===== Buttons wiring ===== */
+q25.addEventListener("click", () => addToDraft(25));
+q100.addEventListener("click", () => addToDraft(100));
+q500.addEventListener("click", () => addToDraft(500));
+
+betBtn.addEventListener("click", () => {
+  if(!requireDealer()) return;
+  if(!handActive || !actingSeat) return;
+
+  const uid = seatState?.[actingSeat]?.player_uid;
+  if(!uid) return;
+
+  const stack = Number(stackByUid[uid] ?? 0);
+  const v = promptBetAmount(betDraft || 0);
+  if(!v) return;
+
+  if(v > stack){
+    Sound.error();
+    alert("Not enough stack");
+    return;
+  }
+
+  betDraft = v;
+  Sound.tick();
+  updateUI();
+});
+
+callBtn.addEventListener("click", () => {
+  if(!requireDealer()) return;
+  if(!handActive || !actingSeat) return;
+
+  // ✅ call theo betTarget (không tính người đã fold)
+  const toCall = getToCallForSeat(actingSeat);
+  const uid = seatState?.[actingSeat]?.player_uid;
+  if(!uid) return;
+
+  const stack = Number(stackByUid[uid] ?? 0);
+
+  if(toCall <= 0){
+    betDraft = 0;
+    Sound.reject();
+    updateUI();
+    return;
+  }
+
+  betDraft = Math.min(toCall, stack); // thiếu thì auto all-in
+  Sound.tick();
+  updateUI();
+});
+
+allinBtn.addEventListener("click", () => {
+  if(!requireDealer()) return;
+  if(!handActive || !actingSeat) return;
+
+  const uid = seatState?.[actingSeat]?.player_uid;
+  if(!uid) return;
+
+  betDraft = Math.max(0, Number(stackByUid[uid] ?? 0));
+  Sound.tick();
+  updateUI();
+});
+
+foldBtn.addEventListener("click", () => {
+  if(!requireDealer()) return;
+  if(!handActive || !actingSeat) return;
+
+  pushHistory();
+
+  handState[actingSeat].inHand = false;
+  betDraft = 0;
+
+  // ✅ recompute betTarget ignoring folds (fix call bug)
+  recomputeBetTarget();
+
+  // move to next
+  actingSeat = findNextActingSeat(actingSeat);
+
+  Sound.reject();
+  updateUI();
+});
+
+nextBtn.addEventListener("click", () => {
+  if(!requireDealer()) return;
+  if(!handActive || !actingSeat) return;
+
+  pushHistory();
+  commitDraftIfAny();
+
+  actingSeat = findNextActingSeat(actingSeat);
+
+  Sound.success();
+  updateUI();
+});
+
+backBtn.addEventListener("click", () => {
+  if(!requireDealer()) return;
+  if(!handHistory.length) return;
+
+  if(popHistory()){
+    Sound.tick();
+    updateUI();
+  }
+});
+
+/* ===== Slider to New Hand (anytime) ===== */
+let isDragging = false, startX = 0, currentX = 0;
+const maxX = () => track.offsetWidth - thumb.offsetWidth - 4;
+
+thumb.addEventListener('pointerdown', e => {
+  if (!requireDealer()) return;
+  isDragging = true;
+  startX = e.clientX - thumb.offsetLeft;
+  thumb.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', e => {
+  if (!isDragging) return;
+  currentX = e.clientX - startX;
+  currentX = Math.max(4, Math.min(currentX, maxX()));
+  thumb.style.left = currentX + 'px';
+});
+document.addEventListener('pointerup', async () => {
+  if (!isDragging) return;
+  isDragging = false;
+
+  if(!isDealerLoggedIn()){
+    resetSlider();
+    return;
+  }
+
+  if (currentX > maxX() * 0.85) {
+    Sound.success();
+    thumb.style.left = maxX() + 'px';
+    await advanceDealerButtonAndNewHand();
+    resetSlider();
+  } else {
+    resetSlider();
+  }
+});
+document.addEventListener('pointercancel', () => {
+  isDragging = false;
+  resetSlider();
+});
+function resetSlider(){
+  currentX = 0;
+  thumb.style.left = '4px';
+}
+
+/* ===== Table_state realtime dealer seat ===== */
+async function fetchDealerSeat(){
+  if(!TABLE_UID) return;
+
+  const { data, error } = await sbClient
+    .from('table_state')
+    .select('dealer_seat')
+    .eq('table_uid', TABLE_UID)
+    .single();
+
+  if(!error && data?.dealer_seat){
+    const v = Number(data.dealer_seat);
+    if(v >= 1 && v <= SEAT_COUNT) dealerPosSeat = v;
+  }else{
+    dealerPosSeat = 1;
+  }
+
+  if(!isSeatOccupied(dealerPosSeat)){
+    const first = findNextOccupiedSeat(dealerPosSeat) || findNextOccupiedSeat(0) || 1;
+    dealerPosSeat = first;
+  }
+
+  positionDealerToken();
+}
+
+async function initTableStateRealtime(){
+  if(!TABLE_UID) return;
+
+  if(tableStateChannel){
+    try{ await tableStateChannel.unsubscribe(); }catch(e){}
+    tableStateChannel = null;
+  }
+
+  tableStateChannel = sbClient.channel('table_state-' + TABLE_UID)
+    .on('postgres_changes',
+      { event:'*', schema:'public', table:'table_state', filter:`table_uid=eq.${TABLE_UID}` },
+      () => {
+        fetchDealerSeat().then(() => {
+          if(handActive && !actingSeat) actingSeat = computeUTGSeat();
+          renderSeats();
+          updateUI();
+        });
+      }
+    )
+    .subscribe();
+}
+
+/* ===== Seats creation ===== */
+let panelInited = false;
+function initPanelOnce(){
+  if(panelInited) return;
+  panelInited = true;
+
+  // create seats + bet floats
+  for(let i=1;i<=SEAT_COUNT;i++){
+    seatState[i] = { player_uid: null };
+
+    const seat = document.createElement("div");
+    seat.className = "seat";
+
+    const seatNo = document.createElement("div");
+    seatNo.className = "seatNo";
+    seatNo.textContent = "Seat " + i;
+
+    const stake = document.createElement("div");
+    stake.className = "stake";
+    stake.textContent = "-";
+
+    seat.appendChild(seatNo);
+    seat.appendChild(stake);
+
+    // Hold: assign/reject QR
+    seat.addEventListener('pointerdown', () => {
+      if (!requireDealer()) return;
+
+      didHold = false;
+      clearTimeout(holdTimer);
+
+      holdTimer = setTimeout(() => {
+        didHold = true;
+        if (seatState[i].player_uid) {
+          if (confirm(`Reject PLAYER_UID ${seatState[i].player_uid.slice(0,6)} ?`)) {
+            Sound.reject();
+            ejectUID(i);
+          }
+        } else {
+          scanQRAndAssign(i);
+        }
+      }, HOLD_TIME);
+    });
+
+    seat.addEventListener('pointerup', () => clearTimeout(holdTimer));
+    seat.addEventListener('pointerleave', () => clearTimeout(holdTimer));
+    seat.addEventListener('pointercancel', () => clearTimeout(holdTimer));
+
+    // Click: choose winner
+    seat.addEventListener("click", () => {
+      if(didHold) return;
+      if(!requireDealer()) return;
+      if(!seatState[i].player_uid) return;
+
+      winnerSeat = i;
+      Sound.success();
+      updateUI();
+    });
+
+    seats[i] = { el: seat, seatNoEl: seatNo, stakeEl: stake };
+    tableEl.appendChild(seat);
+
+    const bf = document.createElement("div");
+    bf.className = "bet-float";
+    bf.textContent = "";
+    betFloats[i] = { el: bf };
+    tableEl.appendChild(bf);
+  }
+
+  resetHandState();
+  renderSeats();
+  window.addEventListener("resize", () => {
+    renderSeats();
+  });
+}
+
+/* ===== DB seats load + realtime ===== */
+async function loadSeats(){
+  if(!TABLE_UID) return;
+
+  for(let i=1;i<=SEAT_COUNT;i++){
+    seatState[i] = { player_uid: null };
+  }
+
+  const { data } = await sbClient.from('seats').select('*').eq('table_uid', TABLE_UID);
+  (data||[]).forEach(r => { seatState[String(r.seat_number)].player_uid = r.player_uid; });
+
+  renderSeats();
+}
+
+async function initRealtime(){
+  if(!TABLE_UID) return;
+
+  if(seatChannel){
+    try{ await seatChannel.unsubscribe(); }catch(e){}
+    seatChannel = null;
+  }
+
+  seatChannel = sbClient.channel('seats-' + TABLE_UID)
+    .on('postgres_changes',
+      { event:'*', schema:'public', table:'seats', filter:`table_uid=eq.${TABLE_UID}` },
+      p => {
+        seatState[p.new.seat_number].player_uid = p.new.player_uid;
+
+        clearTimeout(stakeRefreshTimer);
+        stakeRefreshTimer = setTimeout(() => {
+          refreshStakesForOccupiedSeats().then(() => {
+            if(handActive){
+              // if acting seat becomes empty, recalc
+              if(actingSeat && !isSeatOccupied(actingSeat)) actingSeat = computeUTGSeat();
+              recomputeBetTarget();
+            }
+            updateUI();
+          });
+        }, 120);
+
+        renderSeats();
+      }
+    )
+    .subscribe();
+}
+
+/* ===== QR / assign ===== */
+async function isValidPlayerUID(player_uid){
+  const { data, error } = await sbClient.from('players').select('player_uid').eq('player_uid', player_uid).single();
+  return !(error || !data);
+}
+
+async function assignUID(seat, player_uid){
+  seatState[seat].player_uid = player_uid;
+  renderSeats();
+
+  const { data, error } = await sbClient
+    .from('seats')
+    .update({ player_uid })
+    .eq('table_uid', TABLE_UID)
+    .eq('seat_number', seat)
+    .select();
+
+  if (error || !data?.length){
+    seatState[seat].player_uid = null;
+    renderSeats();
+    Sound.error();
+    alert('❌ Gán PLAYER_UID thất bại');
+    return;
+  }
+
+  await refreshStakesForOccupiedSeats();
+
+  if(handActive && isDealerLoggedIn()){
+    startNewHandLocal();
+  }else{
+    updateUI();
+  }
+}
+
+async function ejectUID(seat){
+  const old = seatState[seat].player_uid;
+  seatState[seat].player_uid = null;
+  renderSeats();
+
+  const { data, error } = await sbClient
+    .from('seats')
+    .update({ player_uid: null })
+    .eq('table_uid', TABLE_UID)
+    .eq('seat_number', String(seat))
+    .select();
+
+  if (error || !data?.length){
+    seatState[seat].player_uid = old;
+    renderSeats();
+    Sound.error();
+    alert('❌ Reject thất bại');
+    return;
+  }
+
+  await refreshStakesForOccupiedSeats();
+
+  if(handActive){
+    if(actingSeat === seat) actingSeat = findNextActingSeat(seat) || computeUTGSeat();
+    recomputeBetTarget();
+  }
+  updateUI();
+}
+
+async function scanQRAndAssign(seatIndex){
+  const modal = document.getElementById('qrModal');
+  const closeBtn = document.getElementById('closeQR');
+
+  modal.style.display = 'flex';
+  await safeStopQR();
+
+  setTimeout(async () => {
+    qrScanner = new Html5Qrcode('qr-reader');
+    qrScanner.start(
+      { facingMode:'environment' },
+      { fps:10, qrbox:220, aspectRatio:1 },
+      async text => {
+        await safeStopQR();
+        modal.style.display = 'none';
+
+        const player_uid = text?.trim().replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
+        if (!player_uid){
+          Sound.error();
+          return alert('QR không hợp lệ');
+        }
+
+        const exists = await isValidPlayerUID(player_uid);
+        if (!exists){
+          Sound.error();
+          return alert('❌ UID không tồn tại trong hệ thống');
+        }
+
+        assignUID(seatIndex, player_uid);
+      }
+    );
+  }, 150);
+
+  closeBtn.onclick = async () => {
+    await safeStopQR();
+    modal.style.display = 'none';
+  };
+}
+
+async function safeStopQR(){
+  if (qrScanner){
+    try{
+      if (qrScanner.isScanning) await qrScanner.stop();
+      await qrScanner.clear();
+    }catch(e){}
+    qrScanner = null;
+  }
+}
+
+/* ===== Table session start ===== */
+async function startTableSession(){
+  initPanelOnce();
+
+  await loadSeats();
+  await refreshStakesForOccupiedSeats();
+
+  await fetchDealerSeat();
+  await initRealtime();
+  await initTableStateRealtime();
+
+  if(isDealerLoggedIn()){
+    startNewHandLocal();
+  }else{
+    updateUI();
+  }
+}
+
+/* ===== TABLE MODAL ===== */
+function openTableModal(){
+  tableModal.style.display = "flex";
+  resetTableModalUI();
+  loadTablesForModal();
+}
+function closeTableModal(){
+  tableModal.style.display = "none";
+  resetTableModalUI();
+}
+function resetTableModalUI(){
+  tableSelect.value = "";
+  tableSelect.innerHTML = `<option value="">Loading…</option>`;
+  tablePin = "";
+  setDots('tablePinDots', 0);
+  tableErrEl.style.display = "none";
+}
+tableClose.addEventListener('click', closeTableModal);
+tableModal.addEventListener('click', (e) => { if (e.target === tableModal) closeTableModal(); });
+
+function tablePress(n){
+  if (!tableSelect.value){
+    Sound.error();
+    tableErrEl.style.display="block";
+    tableErrEl.textContent="❌ Select table first";
+    return;
+  }
+  tableErrEl.style.display = "none";
+  if (tablePin.length >= 4) return;
+  tablePin += String(n);
+  setDots('tablePinDots', tablePin.length);
+  if (tablePin.length === 4) submitTableLogin();
+}
+function tableBack(){
+  tableErrEl.style.display = "none";
+  tablePin = tablePin.slice(0,-1);
+  setDots('tablePinDots', tablePin.length);
+}
+
+async function loadTablesForModal(){
+  try{
+    const { data, error } = await sbClient
+      .from('tables')
+      .select('table_uid, table_name')
+      .eq('active', true)
+      .order('table_uid');
+
+    if (error){
+      console.error("loadTables error:", error);
+      tableSelect.innerHTML = `<option value="">Load failed</option>`;
+      return;
+    }
+
+    const rows = data || [];
+    tableSelect.innerHTML =
+      `<option value="">— Select table —</option>` +
+      rows.map(t => {
+        const name = String((t.table_name||"")).trim();
+        const label = name ? name : String(t.table_uid);
+        return `<option value="${String(t.table_uid)}">${label}</option>`;
+      }).join("");
+
+    if (!rows.length){
+      tableSelect.innerHTML = `<option value="">No active tables</option>`;
+    }
+  }catch(e){
+    console.error("loadTables exception:", e);
+    tableSelect.innerHTML = `<option value="">Load failed</option>`;
+  }
+}
+
+async function submitTableLogin(){
+  const table = tableSelect.value;
+  if (!table) return;
+  if (tablePin.length !== 4) return;
+
+  const { data, error } = await sbClient
+    .from('tables')
+    .select('table_uid, table_name, pin_hash, active')
+    .eq('table_uid', table)
+    .single();
+
+  if (error || !data){
+    Sound.error();
+    tableErrEl.textContent = "❌ Table not found";
+    tableErrEl.style.display = "block";
+    tablePin = ""; setDots('tablePinDots', 0);
+    return;
+  }
+  if (!data.active){
+    Sound.error();
+    tableErrEl.textContent = "❌ Table locked";
+    tableErrEl.style.display = "block";
+    tablePin = ""; setDots('tablePinDots', 0);
+    return;
+  }
+  if (String(data.pin_hash) !== tablePin){
+    Sound.error();
+    tableErrEl.textContent = "❌ Wrong PIN";
+    tableErrEl.style.display = "block";
+    tablePin = ""; setDots('tablePinDots', 0);
+    return;
+  }
+
+  if (TABLE_UID && TABLE_UID !== data.table_uid){
+    dealerLogout();
+  }
+
+  TABLE_UID = data.table_uid;
+  TABLE_NAME = (data.table_name || "").trim() || data.table_uid;
+
+  localStorage.setItem("table_uid", TABLE_UID);
+  localStorage.setItem("table_name", TABLE_NAME);
+
+  setTableUI();
+  setDealerUI();
+  await startTableSession();
+  closeTableModal();
+}
+
+/* ===== DEALER MODAL ===== */
+function openDealerModal(){
+  if (!requireTable()) return;
+  dealerModal.style.display = "flex";
+  resetDealerModalUI();
+  loadDealersForModal();
+}
+function closeDealerModal(){
+  dealerModal.style.display = "none";
+  resetDealerModalUI();
+}
+function resetDealerModalUI(){
+  dealerSelect.value = "";
+  dealerSelect.innerHTML = `<option value="">Loading…</option>`;
+  dealerPin = "";
+  setDots('dealerPinDots', 0);
+  dealerErrEl.style.display = "none";
+}
+dealerClose.addEventListener('click', closeDealerModal);
+dealerModal.addEventListener('click', (e) => { if (e.target === dealerModal) closeDealerModal(); });
+
+async function loadDealersForModal(){
+  const { data, error } = await sbClient.rpc('list_dealers');
+  if (error){
+    console.error(error);
+    dealerSelect.innerHTML = `<option value="">Load failed</option>`;
+    return;
+  }
+  const rows = data || [];
+  if (!rows.length){
+    dealerSelect.innerHTML = `<option value="">No dealers</option>`;
+    return;
+  }
+  dealerSelect.innerHTML =
+    `<option value="">— Select your name —</option>` +
+    rows.map(d => `<option value="${String(d.dealer_uid)}">${String(d.dealer_name||"")}</option>`).join("");
+}
+
+function dealerPress(n){
+  if (!requireTable()) return;
+
+  if (!dealerSelect.value) {
+    Sound.error();
+    dealerErrEl.style.display="block";
+    dealerErrEl.textContent="❌ Select dealer first";
+    return;
+  }
+  dealerErrEl.style.display = "none";
+
+  if (dealerPin.length >= 4) return;
+  dealerPin += String(n);
+  setDots('dealerPinDots', dealerPin.length);
+
+  if (dealerPin.length === 4) submitDealerLogin();
+}
+function dealerBack(){
+  dealerErrEl.style.display = "none";
+  dealerPin = dealerPin.slice(0,-1);
+  setDots('dealerPinDots', dealerPin.length);
+}
+
+async function submitDealerLogin(){
+  if (!requireTable()) return;
+  if (!dealerSelect.value) return;
+  if (dealerPin.length !== 4) return;
+
+  const { data, error } = await sbClient.rpc('verify_dealer_pin', {
+    p_dealer_uid: dealerSelect.value,
+    p_pin: dealerPin
+  });
+
+  if (error){
+    console.error(error);
+    Sound.error();
+    dealerErrEl.textContent = "❌ Verify failed";
+    dealerErrEl.style.display = "block";
+    dealerPin = "";
+    setDots('dealerPinDots', 0);
+    return;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (row?.ok){
+    DEALER_UID = row.dealer_uid;
+    DEALER_NAME = row.dealer_name;
+
+    localStorage.setItem("dealer_uid", DEALER_UID);
+    localStorage.setItem("dealer_name", DEALER_NAME);
+
+    setDealerUI();
+    closeDealerModal();
+
+    if(!handActive){
+      startNewHandLocal();
+    }else{
+      updateUI();
+    }
+  }else{
+    Sound.error();
+    dealerErrEl.textContent = "❌ Wrong PIN";
+    dealerErrEl.style.display = "block";
+    dealerPin = "";
+    setDots('dealerPinDots', 0);
+  }
+}
+
+/* ===== Logout ===== */
+function dealerLogout(){
+  DEALER_UID = null;
+  DEALER_NAME = null;
+  localStorage.removeItem("dealer_uid");
+  localStorage.removeItem("dealer_name");
+  setDealerUI();
+  resetHandState();
+  updateUI();
+}
+
+/* ===== Hold logout (Table + Dealer) ===== */
+let tableHoldTimer = null;
+let tableHoldStart = 0;
+
+function startTableHold(){
+  if (tableHoldTimer) return;
+  tableHoldStart = performance.now();
+  tableBtn.classList.add("holding");
+  tableProgress.style.width = "0%";
+
+  tableHoldTimer = setInterval(() => {
+    const t = performance.now() - tableHoldStart;
+    const pct = Math.min(100, (t / HOLD_TIME) * 100);
+    tableProgress.style.width = pct.toFixed(0) + "%";
+    if (t >= HOLD_TIME) stopTableHold(true);
+  }, 16);
+}
+function stopTableHold(trigger=false){
+  if (tableHoldTimer){
+    clearInterval(tableHoldTimer);
+    tableHoldTimer = null;
+  }
+  tableBtn.classList.remove("holding");
+  tableProgress.style.width = "0%";
+
+  if (trigger && isTableLoggedIn()){
+    if (confirm(`Logout table ${TABLE_UID}?`)) tableLogout();
+  }
+}
+
+let dealerHoldTimer = null;
+let dealerHoldStart = 0;
+
+function startDealerHold(){
+  if (dealerHoldTimer) return;
+  dealerHoldStart = performance.now();
+  dealerBtn.classList.add("holding");
+  dealerProgress.style.width = "0%";
+
+  dealerHoldTimer = setInterval(() => {
+    const t = performance.now() - dealerHoldStart;
+    const pct = Math.min(100, (t / HOLD_TIME) * 100);
+    dealerProgress.style.width = pct.toFixed(0) + "%";
+    if (t >= HOLD_TIME) stopDealerHold(true);
+  }, 16);
+}
+function stopDealerHold(trigger=false){
+  if (dealerHoldTimer){
+    clearInterval(dealerHoldTimer);
+    dealerHoldTimer = null;
+  }
+  dealerBtn.classList.remove("holding");
+  dealerProgress.style.width = "0%";
+
+  if (trigger && isDealerLoggedIn()){
+    if (confirm(`Logout dealer ${DEALER_NAME}?`)) dealerLogout();
+  }
+}
+
+/* bind table btn */
+tableBtn.addEventListener("pointerdown", (e) => {
+  if (e.button !== undefined && e.button !== 0) return;
+  startTableHold();
+});
+tableBtn.addEventListener("pointerup", () => stopTableHold(false));
+tableBtn.addEventListener("pointerleave", () => stopTableHold(false));
+tableBtn.addEventListener("pointercancel", () => stopTableHold(false));
+tableBtn.addEventListener("click", () => {
+  if (!isTableLoggedIn()) openTableModal();
+});
+
+/* bind dealer btn */
+dealerBtn.addEventListener("pointerdown", (e) => {
+  if (e.button !== undefined && e.button !== 0) return;
+  startDealerHold();
+});
+dealerBtn.addEventListener("pointerup", () => stopDealerHold(false));
+dealerBtn.addEventListener("pointerleave", () => stopDealerHold(false));
+dealerBtn.addEventListener("pointercancel", () => stopDealerHold(false));
+dealerBtn.addEventListener("click", () => {
+  if (!isTableLoggedIn()) return openTableModal();
+  if (!isDealerLoggedIn()) openDealerModal();
+});
+
+/* ===== table logout ===== */
+async function tableLogout(){
+  if (seatChannel){
+    try{ await seatChannel.unsubscribe(); }catch(e){}
+    seatChannel = null;
+  }
+  if(tableStateChannel){
+    try{ await tableStateChannel.unsubscribe(); }catch(e){}
+    tableStateChannel = null;
+  }
+
+  TABLE_UID = null;
+  TABLE_NAME = null;
+  localStorage.removeItem("table_uid");
+  localStorage.removeItem("table_name");
+
+  dealerLogout();
+
+  for(let i=1;i<=SEAT_COUNT;i++){
+    seatState[i] = { player_uid: null };
+  }
+  Object.keys(baseStakeByUid).forEach(k => delete baseStakeByUid[k]);
+  Object.keys(stackByUid).forEach(k => delete stackByUid[k]);
+
+  resetHandState();
+  renderSeats();
+
+  setTableUI();
+  setDealerUI();
+
+  setTimeout(openTableModal, 120);
+}
+
+/* ===== Restore ===== */
+(async function restoreSessions(){
+  initPanelOnce();
+
+  const savedUid = localStorage.getItem("table_uid");
+  const savedName = localStorage.getItem("table_name");
+  if (savedUid){
+    TABLE_UID = savedUid;
+    TABLE_NAME = savedName || savedUid;
+
+    try{
+      const { data } = await sbClient.from('tables').select('table_name').eq('table_uid', TABLE_UID).single();
+      const name = (data?.table_name || "").trim();
+      if (name){
+        TABLE_NAME = name;
+        localStorage.setItem("table_name", TABLE_NAME);
+      }
+    }catch(e){}
+
+    const duid = localStorage.getItem("dealer_uid");
+    const dname = localStorage.getItem("dealer_name");
+    if (duid){
+      DEALER_UID = duid;
+      DEALER_NAME = dname || duid;
+    }
+
+    setTableUI();
+    setDealerUI();
+    updateUI();
+    await startTableSession();
+  }else{
+    setTableUI();
+    setDealerUI();
+    updateUI();
+    setTimeout(openTableModal, 120);
+  }
+})();
+</script>
+</body>
+</html>
