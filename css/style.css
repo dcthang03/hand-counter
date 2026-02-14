@@ -390,6 +390,47 @@ input, button { font-size: 16px; }
 }
 .pill b{ font-size:13px; color:#fff; }
 
+.pot-breakdown{
+  display:none;
+  margin:-2px 0 10px;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+}
+.pot-breakdown.show{ display:block; }
+.pot-breakdown .row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:5px 0;
+  font-size:12px;
+  font-weight:1000;
+  color: rgba(234,240,255,.86);
+}
+.pot-breakdown .row + .row{
+  border-top:1px dashed rgba(255,255,255,.10);
+}
+.pot-breakdown .left{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.pot-breakdown .tag{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(34,211,238,.35);
+  background: rgba(34,211,238,.15);
+  color: rgba(220,252,255,.95);
+  font-size:11px;
+}
+.pot-breakdown .winner{
+  color: rgba(245,158,11,.95);
+}
+
 .quickRow{
   display:flex;
   gap:10px;

@@ -1,6 +1,7 @@
 // js/table.js
-// Logic bàn + hand + seats + realtime + QR + UI render
-// Nhận ctx từ app.js để dùng sbClient, Sound, requireDealer, requireTable
+// Table + hand + seats + realtime + QR + UI render
+// Receives ctx from app.js: sbClient, Sound, requireDealer, requireTable
+import { buildPotsFromCommitted } from "./pot-engine.js";
 
 export function createTableModule(ctx){
   const S = ctx.state;
@@ -8,8 +9,8 @@ export function createTableModule(ctx){
   const Sound = ctx.Sound;
 
   // ===== DOM (lazy init) =====
-  let tableEl, potLabel, potCenter, actingTitle, streetLabel, blindLabel, toCallLabel, draftLabel;
-  let betBtn, callBtn, foldBtn, allinBtn, backBtn, nextBtn;
+  let tableEl, potLabel, potCenter, actingTitle, streetLabel, blindLabel, toCallLabel, draftLabel, potBreakdownList;
+  let betBtn, foldBtn, allinBtn, backBtn, nextBtn;
   let q25, q100, q500;
   let thumb, track;
 
@@ -23,9 +24,9 @@ export function createTableModule(ctx){
     blindLabel = document.getElementById("blindLabel");
     toCallLabel = document.getElementById("toCallLabel");
     draftLabel = document.getElementById("draftLabel");
+    potBreakdownList = document.getElementById("potBreakdownList");
 
     betBtn = document.getElementById("betBtn");
-    callBtn = document.getElementById("callBtn");
     foldBtn = document.getElementById("foldBtn");
     allinBtn = document.getElementById("allinBtn");
     backBtn = document.getElementById("backBtn");
@@ -151,20 +152,22 @@ export function createTableModule(ctx){
 
   // =========================================================
   // HAND ENGINE (UPDATED)
-  // - Bet = nhập bằng nút +..., bấm Bet để commit và auto qua người
-  // - Bỏ Next (ẩn)
-  // - Kết thúc vòng: gom bet-float (contributed) vào pot, reset contributed=0
-  // - Chuyển street: actingSeat về đúng người đầu vòng (gần dealer token)
-  // - Chỉ được chọn winner khi Showdown (sau River)
-  // - Tap winner lần nữa => bỏ chọn
-  // - Slider chỉ chạy khi Showdown + đã chọn winner
+  // - Bet = nháº­p báº±ng nÃºt +..., báº¥m Bet Ä‘á»ƒ commit vÃ  auto qua ngÆ°á»i
+  // - Bá» Next (áº©n)
+  // - Káº¿t thÃºc vÃ²ng: gom bet-float (contributed) vÃ o pot, reset contributed=0
+  // - Chuyá»ƒn street: actingSeat vá» Ä‘Ãºng ngÆ°á»i Ä‘áº§u vÃ²ng (gáº§n dealer token)
+  // - Chá»‰ Ä‘Æ°á»£c chá»n winner khi Showdown (sau River)
+  // - Tap winner láº§n ná»¯a => bá» chá»n
+  // - Slider chá»‰ cháº¡y khi Showdown + Ä‘Ã£ chá»n winner
   // =========================================================
 
   function resetHandState(){
+    S.totalContribBySeat = {};
     for(let i=1;i<=S.SEAT_COUNT;i++){
-      // contributed = bet của street hiện tại (bet-float)
-      // hasActed = đã action trong betting round hiện tại chưa
+      // contributed = bet cá»§a street hiá»‡n táº¡i (bet-float)
+      // hasActed = Ä‘Ã£ action trong betting round hiá»‡n táº¡i chÆ°a
       S.handState[i] = { inHand: true, contributed: 0, hasActed: false };
+      S.totalContribBySeat[i] = 0;
     }
     S.handHistory = [];
     S.handActive = false;
@@ -172,17 +175,204 @@ export function createTableModule(ctx){
     S.handStreet = "Preflop";
     S.betDraft = 0;
     S.winnerSeat = null;
+    S.potBreakdown = [];
+    S.potWinners = [];
+    S.pendingRefundsBySeat = {};
+    S.refundsApplied = false;
+    S.autoSettled = false;
+    S.bbSeat = null;
+    S.bbOptionPending = false;
     S.betTarget = 0;
 
-    // ✅ pot đã gom xong (giữ qua street)
+    // âœ… pot Ä‘Ã£ gom xong (giá»¯ qua street)
     S.handPot = 0;
 
     if(streetLabel) streetLabel.textContent = S.handStreet;
   }
 
-  // ✅ Pot hiển thị = pot đã gom xong (không cộng bet-float đang nằm ngoài pot)
+  // âœ… Pot hiá»ƒn thá»‹ = pot Ä‘Ã£ gom xong (khÃ´ng cá»™ng bet-float Ä‘ang náº±m ngoÃ i pot)
   function getPotTotal(){
     return Number(S.handPot || 0);
+  }
+
+  function renderPotBreakdownList(){
+    if(!potBreakdownList) return;
+
+    const rows = [];
+    if(S.handStreet === "Showdown"){
+      ensureShowdownPots();
+      const pots = S.potBreakdown || [];
+      for(let i=0; i<pots.length; i++){
+        const label = (i === 0) ? "Main pot" : `Side pot ${i}`;
+        const amount = Number(pots[i]?.amount || 0);
+        const winnerSeat = Number(S.potWinners?.[i] || 0);
+        const winnerText = winnerSeat > 0 ? `Seat ${winnerSeat}` : "Pending";
+        rows.push(
+          `<div class="row">` +
+            `<div class="left"><span class="tag">${label}</span><span>$${amount}</span></div>` +
+            `<span class="winner">${winnerText}</span>` +
+          `</div>`
+        );
+      }
+    }else{
+      const total = getPotTotal();
+      if(total > 0){
+        rows.push(
+          `<div class="row">` +
+            `<div class="left"><span class="tag">Pot</span><span>$${total}</span></div>` +
+            `<span></span>` +
+          `</div>`
+        );
+      }
+    }
+
+    potBreakdownList.innerHTML = rows.join("");
+    potBreakdownList.classList.toggle("show", rows.length > 0);
+  }
+
+  function getSeatStack(seatNum){
+    const uid = S.seatState?.[seatNum]?.player_uid;
+    if(!uid) return 0;
+    return Math.max(0, Number(S.stackByUid[uid] ?? 0));
+  }
+
+  function addContribution(seatNum, amount){
+    if(!amount || amount <= 0) return;
+    if(!S.totalContribBySeat) S.totalContribBySeat = {};
+    S.totalContribBySeat[seatNum] = Number(S.totalContribBySeat[seatNum] || 0) + Number(amount);
+  }
+
+  function computePotBreakdown(){
+    const players = [];
+    const uidToSeat = {};
+    for(let i=1;i<=S.SEAT_COUNT;i++){
+      const total = Number(S.totalContribBySeat?.[i] || 0);
+      if(total <= 0) continue;
+      const uid = S.seatState?.[i]?.player_uid;
+      if(!uid) continue;
+      uidToSeat[uid] = i;
+      players.push({
+        player_uid: uid,
+        committed: total,
+        folded: S.handState[i]?.inHand === false
+      });
+    }
+
+    const out = buildPotsFromCommitted(players);
+    const pots = (out.pots || []).map((pot) => ({
+      id: pot.id,
+      amount: Number(pot.amount || 0),
+      eligible: Array.isArray(pot.eligible) ? pot.eligible : [],
+      eligibleSeats: (pot.eligible || [])
+        .map((uid) => Number(uidToSeat[uid] || 0))
+        .filter((seat) => seat > 0)
+    }));
+    const refunds = {};
+    const refundsByUid = out.refundsByUid || {};
+    Object.keys(refundsByUid).forEach((uid) => {
+      const seat = Number(uidToSeat[uid] || 0);
+      const amt = Number(refundsByUid[uid] || 0);
+      if(seat > 0 && amt > 0) refunds[seat] = amt;
+    });
+
+    if(!pots.length && Number(S.handPot || 0) > 0){
+      const eligibleSeats = getActiveInHandSeats();
+      if(eligibleSeats.length){
+        pots.push({
+          id: "main",
+          amount: Number(S.handPot || 0),
+          eligible: eligibleSeats
+            .map((seat) => S.seatState?.[seat]?.player_uid)
+            .filter(Boolean),
+          eligibleSeats
+        });
+      }
+    }
+
+    return { pots, refunds };
+  }
+
+  function applyPendingRefunds(){
+    if(S.refundsApplied) return;
+    const refunds = S.pendingRefundsBySeat || {};
+    let totalRefund = 0;
+
+    for(let i=1;i<=S.SEAT_COUNT;i++){
+      const amt = Number(refunds[i] || 0);
+      if(amt <= 0) continue;
+      const uid = S.seatState?.[i]?.player_uid;
+      if(!uid) continue;
+      S.stackByUid[uid] = Number(S.stackByUid[uid] ?? 0) + amt;
+      totalRefund += amt;
+    }
+
+    if(totalRefund > 0){
+      S.handPot = Math.max(0, Number(S.handPot || 0) - totalRefund);
+    }
+    S.refundsApplied = true;
+  }
+
+  function ensureShowdownPots(){
+    if(S.handStreet !== "Showdown") return;
+    if(!Array.isArray(S.potBreakdown) || !S.potBreakdown.length){
+      const out = computePotBreakdown();
+      S.potBreakdown = out.pots || [];
+      S.pendingRefundsBySeat = out.refunds || {};
+    }
+    applyPendingRefunds();
+    if(!Array.isArray(S.potWinners)) S.potWinners = [];
+    if(S.potWinners.length > S.potBreakdown.length){
+      S.potWinners = S.potWinners.slice(0, S.potBreakdown.length);
+    }
+    S.winnerSeat = S.potWinners[0] ?? null;
+  }
+
+  function isAllInRunout(){
+    const alive = getActiveInHandSeats();
+    if(alive.length <= 1) return false;
+    const seatsWithChips = alive.filter(seat => getSeatStack(seat) > 0).length;
+    // If at most one player can still bet/act, run out directly to showdown.
+    return seatsWithChips <= 1;
+  }
+
+  function moveToShowdown(){
+    collectStreetBetsIntoPot();
+    S.handStreet = "Showdown";
+    S.actingSeat = null;
+    S.betDraft = 0;
+    S.autoSettled = false;
+    ensureShowdownPots();
+  }
+
+  function settleSingleSurvivorNow(){
+    collectStreetBetsIntoPot();
+    const winnerSeat = getActiveInHandSeats()[0] ?? null;
+    const pot = Number(S.handPot || 0);
+
+    if(winnerSeat && pot > 0){
+      const uidW = S.seatState?.[winnerSeat]?.player_uid;
+      if(uidW){
+        S.stackByUid[uidW] = Number(S.stackByUid[uidW] ?? 0) + pot;
+      }
+    }
+
+    S.handPot = 0;
+    S.handStreet = "Showdown";
+    S.actingSeat = null;
+    S.betDraft = 0;
+    S.potBreakdown = winnerSeat ? [{ amount: pot, eligibleSeats: [winnerSeat] }] : [];
+    S.potWinners = winnerSeat ? [winnerSeat] : [];
+    S.winnerSeat = winnerSeat;
+    S.pendingRefundsBySeat = {};
+    S.refundsApplied = true;
+    S.autoSettled = true;
+    S.bbOptionPending = false;
+  }
+
+  function isShowdownReadyForPayout(){
+    if(S.handStreet !== "Showdown") return false;
+    ensureShowdownPots();
+    return S.potBreakdown.length > 0 && S.potWinners.length === S.potBreakdown.length;
   }
 
   function getActiveInHandSeats(){
@@ -191,6 +381,20 @@ export function createTableModule(ctx){
       if(!isSeatOccupied(i)) continue;
       if(S.handState[i]?.inHand === false) continue;
       out.push(i);
+    }
+    return out;
+  }
+
+  function isActionableSeat(seatNum){
+    if(!isSeatOccupied(seatNum)) return false;
+    if(S.handState[seatNum]?.inHand === false) return false;
+    return getSeatStack(seatNum) > 0;
+  }
+
+  function getActionableInHandSeats(){
+    const out = [];
+    for(let i=1;i<=S.SEAT_COUNT;i++){
+      if(isActionableSeat(i)) out.push(i);
     }
     return out;
   }
@@ -213,32 +417,35 @@ export function createTableModule(ctx){
     if(!S.handActive) return null;
     for(let step=1; step<=S.SEAT_COUNT; step++){
       const s = ((fromSeat - 1 + step) % S.SEAT_COUNT) + 1;
-      if(!isSeatOccupied(s)) continue;
-      if(S.handState[s]?.inHand === false) continue;
+      if(!isActionableSeat(s)) continue;
       return s;
     }
     return null;
   }
 
-  // ✅ Người đầu vòng theo street
+  // âœ… NgÆ°á»i Ä‘áº§u vÃ²ng theo street
   function firstToActForStreet(street){
     if(street === "Preflop"){
-      return computeUTGSeat();
+      const utg = computeUTGSeat();
+      if(utg && isActionableSeat(utg)) return utg;
+      return findNextActingSeat(utg || S.dealerPosSeat);
     }
-    // Flop/Turn/River: người gần dealer token nhất (SB) còn inHand
+    // Flop/Turn/River: ngÆ°á»i gáº§n dealer token nháº¥t (SB) cÃ²n inHand
     const sbSeat = getSBSeat();
-    if(!sbSeat) return computeUTGSeat();
-    if(S.handState[sbSeat]?.inHand !== false) return sbSeat;
-    return findNextActingSeat(sbSeat) || computeUTGSeat();
+    if(!sbSeat) return firstToActForStreet("Preflop");
+    if(isActionableSeat(sbSeat)) return sbSeat;
+    return findNextActingSeat(sbSeat) || firstToActForStreet("Preflop");
   }
 
   function applyBlindToSeat(seatNum, amount){
     const uid = S.seatState?.[seatNum]?.player_uid;
     if(!uid) return;
 
-    S.stackByUid[uid] = Number(S.stackByUid[uid] ?? 0) - Number(amount);
-    S.handState[seatNum].contributed = Number(S.handState[seatNum].contributed || 0) + Number(amount);
-    S.handState[seatNum].hasActed = true; // blinds được coi như đã "đặt"
+    const paid = Math.min(Number(amount), Number(S.stackByUid[uid] ?? 0));
+    S.stackByUid[uid] = Number(S.stackByUid[uid] ?? 0) - paid;
+    S.handState[seatNum].contributed = Number(S.handState[seatNum].contributed || 0) + paid;
+    addContribution(seatNum, paid);
+    S.handState[seatNum].hasActed = true; // blinds Ä‘Æ°á»£c coi nhÆ° Ä‘Ã£ "Ä‘áº·t"
   }
 
   function recomputeBetTarget(){
@@ -256,14 +463,63 @@ export function createTableModule(ctx){
     return Math.max(0, Number(S.betTarget || 0) - cur);
   }
 
+  function getBetButtonLabel(){
+    if(!S.handActive || !S.actingSeat) return "Bet";
+    if(S.handStreet === "Showdown") return "Bet";
+
+    const seat = S.actingSeat;
+    const cur = Number(S.handState?.[seat]?.contributed || 0);
+    const draft = Math.max(0, Number(S.betDraft || 0));
+    const target = Number(S.betTarget || 0);
+    const toCall = Math.max(0, target - cur);
+    const nextTotal = cur + draft;
+    const isBBOptionSpot = (
+      S.handStreet === "Preflop" &&
+      Number(S.bbSeat || 0) === Number(seat) &&
+      !!S.bbOptionPending &&
+      Number(target || 0) === Number(S.BB || 0) &&
+      toCall === 0
+    );
+
+    if(isBBOptionSpot){
+      if(draft > 0) return `Raise ${draft}`;
+      return "Check";
+    }
+
+    if(toCall > 0){
+      if(draft > toCall) return `Raise ${draft}`;
+      return `Call ${toCall}`;
+    }
+
+    if(draft > 0){
+      return `Bet ${draft}`;
+    }
+    return "Bet";
+  }
+
+  function clearBBOptionIfActed(seatNum){
+    if(S.handStreet !== "Preflop") return;
+    if(!S.bbOptionPending) return;
+    if(Number(S.bbSeat || 0) !== Number(seatNum || 0)) return;
+    S.bbOptionPending = false;
+  }
+
   function pushHistory(){
     S.handHistory.push({
       actingSeat: S.actingSeat,
       handStreet: S.handStreet,
       betDraft: S.betDraft,
       winnerSeat: S.winnerSeat,
+      potWinners: JSON.parse(JSON.stringify(S.potWinners || [])),
+      potBreakdown: JSON.parse(JSON.stringify(S.potBreakdown || [])),
+      pendingRefundsBySeat: JSON.parse(JSON.stringify(S.pendingRefundsBySeat || {})),
+      refundsApplied: !!S.refundsApplied,
+      autoSettled: !!S.autoSettled,
+      bbSeat: S.bbSeat,
+      bbOptionPending: !!S.bbOptionPending,
       betTarget: S.betTarget,
       handPot: S.handPot,
+      totalContribBySeat: JSON.parse(JSON.stringify(S.totalContribBySeat || {})),
       stackByUid: JSON.parse(JSON.stringify(S.stackByUid)),
       handState: JSON.parse(JSON.stringify(S.handState)),
       dealerPosSeat: S.dealerPosSeat
@@ -278,9 +534,17 @@ export function createTableModule(ctx){
     S.handStreet = snap.handStreet;
     S.betDraft = snap.betDraft;
     S.winnerSeat = snap.winnerSeat;
+    S.potWinners = snap.potWinners || [];
+    S.potBreakdown = snap.potBreakdown || [];
+    S.pendingRefundsBySeat = snap.pendingRefundsBySeat || {};
+    S.refundsApplied = !!snap.refundsApplied;
+    S.autoSettled = !!snap.autoSettled;
+    S.bbSeat = snap.bbSeat ?? null;
+    S.bbOptionPending = !!snap.bbOptionPending;
     S.betTarget = snap.betTarget;
     S.dealerPosSeat = snap.dealerPosSeat;
     S.handPot = Number(snap.handPot || 0);
+    S.totalContribBySeat = snap.totalContribBySeat || {};
 
     Object.keys(S.stackByUid).forEach(k => delete S.stackByUid[k]);
     Object.keys(snap.stackByUid).forEach(k => S.stackByUid[k] = snap.stackByUid[k]);
@@ -324,7 +588,7 @@ export function createTableModule(ctx){
     }
   }
 
-  // ✅ Commit draft (bet/raise/call) ngay lập tức
+  // âœ… Commit draft (bet/raise/call) ngay láº­p tá»©c
   function commitDraftNow(){
     if(!S.handActive || !S.actingSeat) return false;
     if(S.betDraft <= 0) return false;
@@ -340,11 +604,12 @@ export function createTableModule(ctx){
 
     S.stackByUid[uid] = stack - amt;
     S.handState[S.actingSeat].contributed = Number(S.handState[S.actingSeat].contributed || 0) + amt;
+    addContribution(S.actingSeat, amt);
     S.handState[S.actingSeat].hasActed = true;
 
     recomputeBetTarget();
 
-    // nếu đây là raise/bet làm betTarget tăng => reset hasActed cho những người khác
+    // náº¿u Ä‘Ã¢y lÃ  raise/bet lÃ m betTarget tÄƒng => reset hasActed cho nhá»¯ng ngÆ°á»i khÃ¡c
     if(Number(S.betTarget || 0) > beforeTarget){
       resetOthersActedAfterRaise(S.actingSeat);
     }
@@ -362,25 +627,37 @@ export function createTableModule(ctx){
     if(!S.handActive) return false;
     if(onlyOneLeftInHand()) return true;
 
-    const alive = getActiveInHandSeats();
-    if(!alive.length) return true;
+    const actionable = getActionableInHandSeats();
+    if(!actionable.length) return true;
 
-    // ai còn thiếu call => chưa xong
-    for(const seat of alive){
+    // ai cÃ²n thiáº¿u call => chÆ°a xong
+    for(const seat of actionable){
       if(Number(S.handState[seat]?.contributed || 0) !== Number(S.betTarget || 0)) return false;
     }
 
-    // nếu chưa ai bet (betTarget=0): tất cả phải hasActed mới xong
+    // náº¿u chÆ°a ai bet (betTarget=0): táº¥t cáº£ pháº£i hasActed má»›i xong
     if(Number(S.betTarget || 0) === 0){
-      for(const seat of alive){
+      for(const seat of actionable){
         if(!S.handState[seat]?.hasActed) return false;
       }
       return true;
     }
 
-    // có bet: vì khi raise sẽ reset hasActed người khác, nên cần tất cả hasActed
-    for(const seat of alive){
+    // cÃ³ bet: vÃ¬ khi raise sáº½ reset hasActed ngÆ°á»i khÃ¡c, nÃªn cáº§n táº¥t cáº£ hasActed
+    for(const seat of actionable){
       if(!S.handState[seat]?.hasActed) return false;
+    }
+
+    // Preflop: if pot is still unopened (only BB level), BB must have last option to act.
+    if(
+      S.handStreet === "Preflop" &&
+      S.bbOptionPending &&
+      Number(S.betTarget || 0) === Number(S.BB || 0)
+    ){
+      const bb = Number(S.bbSeat || 0);
+      if(bb && isActionableSeat(bb)){
+        return false;
+      }
     }
     return true;
   }
@@ -390,7 +667,7 @@ export function createTableModule(ctx){
     for(let i=1;i<=S.SEAT_COUNT;i++){
       const c = Number(S.handState[i]?.contributed || 0);
       if(c > 0) sum += c;
-      if(S.handState[i]) S.handState[i].contributed = 0; // ✅ bet-float về 0 cho vòng mới
+      if(S.handState[i]) S.handState[i].contributed = 0; // âœ… bet-float vá» 0 cho vÃ²ng má»›i
       if(S.handState[i]) S.handState[i].hasActed = false;
     }
     S.handPot = Number(S.handPot || 0) + sum;
@@ -401,16 +678,14 @@ export function createTableModule(ctx){
   function advanceStreetIfNeeded(){
     if(!isBettingRoundComplete()) return false;
 
-    // nếu chỉ còn 1 người => showdown luôn (dealer sẽ chọn winner ở cuối)
+    // náº¿u chá»‰ cÃ²n 1 ngÆ°á»i => showdown luÃ´n (dealer sáº½ chá»n winner á»Ÿ cuá»‘i)
     if(onlyOneLeftInHand()){
-      collectStreetBetsIntoPot();
-      S.handStreet = "Showdown";
-      S.actingSeat = null;
+      settleSingleSurvivorNow();
       updateUI();
       return true;
     }
 
-    // ✅ gom bet street hiện tại vào pot, reset bet floats
+    // âœ… gom bet street hiá»‡n táº¡i vÃ o pot, reset bet floats
     collectStreetBetsIntoPot();
 
     if(S.handStreet === "Preflop") S.handStreet = "Flop";
@@ -418,14 +693,21 @@ export function createTableModule(ctx){
     else if(S.handStreet === "Turn") S.handStreet = "River";
     else if(S.handStreet === "River") S.handStreet = "Showdown";
 
-    // set acting seat đầu vòng mới
+    // set acting seat Ä‘áº§u vÃ²ng má»›i
     S.actingSeat = (S.handStreet === "Showdown") ? null : firstToActForStreet(S.handStreet);
+    if(S.handStreet === "Showdown") ensureShowdownPots();
 
     updateUI();
     return true;
   }
 
   function advanceAfterAction(){
+    if(isAllInRunout()){
+      moveToShowdown();
+      updateUI();
+      return;
+    }
+
     // xong vòng => chuyển street
     if(advanceStreetIfNeeded()) return;
 
@@ -447,7 +729,7 @@ export function createTableModule(ctx){
       }
     }
 
-    // set inHand false cho ghế trống
+    // set inHand false cho gháº¿ trá»‘ng
     for(let i=1;i<=S.SEAT_COUNT;i++){
       if(!isSeatOccupied(i)) S.handState[i].inHand = false;
     }
@@ -459,13 +741,20 @@ export function createTableModule(ctx){
     if(sbSeat) applyBlindToSeat(sbSeat, S.SB);
     if(bbSeat) applyBlindToSeat(bbSeat, S.BB);
 
+    S.bbSeat = bbSeat ?? null;
+    S.bbOptionPending = !!bbSeat
+      && Number(S.handState?.[bbSeat]?.contributed || 0) >= Number(S.BB || 0)
+      && getSeatStack(bbSeat) > 0;
+
     recomputeBetTarget();
 
-    // Preflop first action = UTG
-    S.actingSeat = computeUTGSeat();
+    // Preflop first action = UTG (skip all-in/zero-stack seats)
+    S.actingSeat = firstToActForStreet("Preflop");
 
     // reset winner lock
     S.winnerSeat = null;
+    S.potBreakdown = [];
+    S.potWinners = [];
 
     updateUI();
     renderSeats();
@@ -475,19 +764,27 @@ export function createTableModule(ctx){
   async function advanceDealerButtonAndNewHand(){
     if(!ctx.requireDealer()) return;
 
-    // chỉ cho payout khi showdown + đã chọn winner
-    if(S.handActive && S.handStreet === "Showdown" && S.winnerSeat && isSeatOccupied(S.winnerSeat)){
-      const pot = getPotTotal(); // = handPot đã gom xong
-      if(pot > 0){
-        const uidW = S.seatState?.[S.winnerSeat]?.player_uid;
+    // chá»‰ cho payout khi showdown + Ä‘Ã£ chá»n winner
+    if(S.handActive && S.handStreet === "Showdown" && !S.autoSettled && isShowdownReadyForPayout()){
+      ensureShowdownPots();
+      for(let idx=0; idx<S.potBreakdown.length; idx++){
+        const pot = Number(S.potBreakdown[idx]?.amount || 0);
+        const winSeat = Number(S.potWinners[idx] || 0);
+        if(pot <= 0 || !winSeat || !isSeatOccupied(winSeat)) continue;
+
+        const uidW = S.seatState?.[winSeat]?.player_uid;
         if(uidW){
           S.stackByUid[uidW] = Number(S.stackByUid[uidW] ?? 0) + pot;
         }
       }
     }
 
-    // ✅ clear winner khi slide xong
     S.winnerSeat = null;
+    S.potBreakdown = [];
+    S.potWinners = [];
+    S.pendingRefundsBySeat = {};
+    S.refundsApplied = false;
+    S.autoSettled = false;
     S.betDraft = 0;
 
     const nextDealer = findNextOccupiedSeat(S.dealerPosSeat) ?? S.dealerPosSeat;
@@ -542,7 +839,7 @@ export function createTableModule(ctx){
 
       if(S.handActive && hs?.inHand === false) s.el.classList.add('folded');
       if(S.handActive && S.actingSeat === i) s.el.classList.add('acting');
-      if(S.winnerSeat === i) s.el.classList.add('winner');
+      if((S.potWinners || []).includes(i) || S.winnerSeat === i) s.el.classList.add('winner');
 
       const bf = S.betFloats[i]?.el;
       if(bf){
@@ -583,18 +880,24 @@ export function createTableModule(ctx){
     if(toCallLabel) toCallLabel.textContent = String(toCall);
     if(draftLabel) draftLabel.textContent = String(S.betDraft);
 
-    // ✅ Call/Check label rule
-    if(callBtn){
-      if(!S.handActive || !S.actingSeat){
-        callBtn.textContent = "Call";
-      }else{
-        if(Number(S.betTarget || 0) === 0) callBtn.textContent = "Check";
-        else callBtn.textContent = toCall > 0 ? `Call ${toCall}` : "Call";
-      }
+    if(betBtn){
+      betBtn.textContent = getBetButtonLabel();
     }
 
     if(actingTitle){
-      if(S.handActive && S.actingSeat){
+      if(S.handStreet === "Showdown"){
+        ensureShowdownPots();
+        const total = Number(S.potBreakdown?.length || 0);
+        const done = Number(S.potWinners?.length || 0);
+        if(total <= 0){
+          actingTitle.textContent = "Showdown";
+        }else if(done < total){
+          const label = (done === 0) ? "Main pot" : `Side pot ${done}`;
+          actingTitle.textContent = `Pick winner: ${label} (${done + 1}/${total})`;
+        }else{
+          actingTitle.textContent = `Winners ready (${done}/${total})`;
+        }
+      }else if(S.handActive && S.actingSeat){
         const uid = S.seatState?.[S.actingSeat]?.player_uid;
         actingTitle.textContent = uid
           ? `Acting: Seat ${S.actingSeat} • $${S.stackByUid[uid] ?? 0}`
@@ -604,17 +907,16 @@ export function createTableModule(ctx){
       }
     }
 
-    // ✅ disable rules: không cho action khi Showdown
     const inActionPhase = (S.handActive && S.actingSeat && S.handStreet !== "Showdown");
     const disabled = (!S.DEALER_UID || !inActionPhase || S.isSubmitting);
 
-    [betBtn, callBtn, foldBtn, allinBtn].forEach(b => {
+    [betBtn, foldBtn, allinBtn].forEach(b => {
       if(!b) return;
       b.disabled = disabled;
       b.style.opacity = b.disabled ? 0.55 : 1;
     });
 
-    // ✅ hide next (removed)
+    // âœ… hide next (removed)
     if(nextBtn){
       nextBtn.style.display = "none";
       nextBtn.disabled = true;
@@ -625,12 +927,13 @@ export function createTableModule(ctx){
       backBtn.style.opacity = backBtn.disabled ? 0.55 : 1;
     }
 
-    // ✅ slider lock: chỉ mở khi Showdown + đã chọn winner
+    // âœ… slider lock: chá»‰ má»Ÿ khi Showdown + Ä‘Ã£ chá»n winner
     if(track){
-      const locked = !(S.handStreet === "Showdown" && !!S.winnerSeat);
+      const locked = !isShowdownReadyForPayout();
       track.classList.toggle("is-locked", locked);
     }
 
+    renderPotBreakdownList();
     renderSeats();
     window.__tourEngine?.init?.(); // harmless
   }
@@ -644,55 +947,50 @@ export function createTableModule(ctx){
     q100?.addEventListener("click", () => addToDraft(100));
     q500?.addEventListener("click", () => addToDraft(500));
 
-    // ✅ BET: commit draft (không prompt), auto qua người
+    // Single primary action button: Bet / Call / Raise
     betBtn?.addEventListener("click", () => {
       if(!ctx.requireDealer()) return;
       if(!S.handActive || !S.actingSeat) return;
       if(S.handStreet === "Showdown") return;
 
-      if(S.betDraft <= 0){
-        Sound.error();
-        return;
-      }
-
       pushHistory();
 
-      const ok = commitDraftNow();
-      if(!ok){
-        Sound.error();
-        return;
-      }
-
-      Sound.success();
-      advanceAfterAction();
-    });
-
-    // ✅ CALL/ CHECK: action ngay lập tức (không chỉ set draft)
-    callBtn?.addEventListener("click", () => {
-      if(!ctx.requireDealer()) return;
-      if(!S.handActive || !S.actingSeat) return;
-      if(S.handStreet === "Showdown") return;
-
-      pushHistory();
-
-      const toCall = getToCallForSeat(S.actingSeat);
-      const uid = S.seatState?.[S.actingSeat]?.player_uid;
+      const actor = S.actingSeat;
+      const toCall = getToCallForSeat(actor);
+      const uid = S.seatState?.[actor]?.player_uid;
       if(!uid) return;
 
-      if(Number(S.betTarget || 0) === 0){
-        // CHECK
+      // Unopened pot: bet with draft, otherwise check.
+      if(toCall <= 0){
+        if(Number(S.betDraft || 0) > 0){
+          const ok = commitDraftNow();
+          if(!ok){
+            Sound.error();
+            return;
+          }
+          clearBBOptionIfActed(actor);
+          Sound.success();
+          advanceAfterAction();
+          return;
+        }
+
         S.betDraft = 0;
-        S.handState[S.actingSeat].hasActed = true;
-        Sound.reject();
+        S.handState[actor].hasActed = true;
+        clearBBOptionIfActed(actor);
+        Sound.tick();
         advanceAfterAction();
         return;
       }
 
-      if(toCall <= 0){
-        // đã bằng betTarget nhưng betTarget>0: coi như "call 0" (rare), vẫn mark acted
-        S.betDraft = 0;
-        S.handState[S.actingSeat].hasActed = true;
-        Sound.tick();
+      // Facing a bet: draft > toCall => raise, otherwise call.
+      if(Number(S.betDraft || 0) > toCall){
+        const ok = commitDraftNow();
+        if(!ok){
+          Sound.error();
+          return;
+        }
+        clearBBOptionIfActed(actor);
+        Sound.success();
         advanceAfterAction();
         return;
       }
@@ -705,12 +1003,17 @@ export function createTableModule(ctx){
       }
 
       S.betDraft = pay;
-      commitDraftNow();
+      const ok = commitDraftNow();
+      if(!ok){
+        Sound.error();
+        return;
+      }
+      clearBBOptionIfActed(actor);
       Sound.tick();
       advanceAfterAction();
     });
 
-    // ✅ ALL-IN: commit ngay
+    // âœ… ALL-IN: commit ngay
     allinBtn?.addEventListener("click", () => {
       if(!ctx.requireDealer()) return;
       if(!S.handActive || !S.actingSeat) return;
@@ -729,6 +1032,7 @@ export function createTableModule(ctx){
 
       S.betDraft = stack;
       commitDraftNow();
+      clearBBOptionIfActed(S.actingSeat);
       Sound.success();
       advanceAfterAction();
     });
@@ -742,9 +1046,10 @@ export function createTableModule(ctx){
 
       S.handState[S.actingSeat].inHand = false;
       S.handState[S.actingSeat].hasActed = true;
+      clearBBOptionIfActed(S.actingSeat);
       S.betDraft = 0;
 
-      // nếu còn 1 người => showdown
+      // náº¿u cÃ²n 1 ngÆ°á»i => showdown
       if(advanceStreetIfNeeded()){
         Sound.reject();
         return;
@@ -781,8 +1086,8 @@ export function createTableModule(ctx){
     thumb.addEventListener('pointerdown', e => {
       if (!ctx.requireDealer()) return;
 
-      // ✅ chỉ cho kéo khi Showdown + đã chọn winner
-      const ok = (S.handActive && S.handStreet === "Showdown" && !!S.winnerSeat);
+      // âœ… chá»‰ cho kÃ©o khi Showdown + Ä‘Ã£ chá»n winner
+      const ok = (S.handActive && isShowdownReadyForPayout());
       if(!ok){
         Sound.error();
         return;
@@ -927,25 +1232,49 @@ export function createTableModule(ctx){
       seat.addEventListener('pointerleave', () => clearTimeout(S.holdTimer));
       seat.addEventListener('pointercancel', () => clearTimeout(S.holdTimer));
 
-      // ✅ Click: choose winner (ONLY at Showdown) + toggle unselect
+      // âœ… Click: choose winner (ONLY at Showdown) + toggle unselect
       seat.addEventListener("click", () => {
         if(S.didHold) return;
         if(!ctx.requireDealer()) return;
         if(!S.seatState[i].player_uid) return;
 
-        // chỉ cho chọn winner khi showdown
+        // chá»‰ cho chá»n winner khi showdown
         if(!(S.handActive && S.handStreet === "Showdown")){
           Sound.reject();
           return;
         }
 
-        if(S.winnerSeat === i){
-          S.winnerSeat = null; // ✅ tap lại để bỏ chọn
-          Sound.tick();
-        }else{
-          S.winnerSeat = i;
-          Sound.success();
+        ensureShowdownPots();
+        if(!S.potBreakdown.length){
+          Sound.error();
+          return;
         }
+
+        const lastSeat = S.potWinners?.[S.potWinners.length - 1];
+        if(lastSeat === i){
+          S.potWinners.pop();
+          S.winnerSeat = S.potWinners[0] ?? null;
+          Sound.tick();
+          updateUI();
+          return;
+        }
+
+        if(S.potWinners.length >= S.potBreakdown.length){
+          Sound.error();
+          return;
+        }
+
+        const potIndex = S.potWinners.length;
+        const eligible = S.potBreakdown[potIndex]?.eligibleSeats || [];
+        const canPick = eligible.includes(i);
+        if(!canPick){
+          Sound.error();
+          return;
+        }
+
+        S.potWinners.push(i);
+        S.winnerSeat = S.potWinners[0] ?? null;
+        Sound.success();
         updateUI();
       });
 
@@ -1032,7 +1361,7 @@ export function createTableModule(ctx){
       S.seatState[seat].player_uid = null;
       renderSeats();
       Sound.error();
-      alert('❌ Gán PLAYER_UID thất bại');
+      alert('Assign PLAYER_UID failed');
       return;
     }
 
@@ -1061,7 +1390,7 @@ export function createTableModule(ctx){
       S.seatState[seat].player_uid = old;
       renderSeats();
       Sound.error();
-      alert('❌ Reject thất bại');
+      alert('Reject failed');
       return;
     }
 
@@ -1092,7 +1421,7 @@ export function createTableModule(ctx){
     await safeStopQR();
 
     setTimeout(async () => {
-      // Html5Qrcode là global do CDN
+      // Html5Qrcode is global from CDN
       S.qrScanner = new window.Html5Qrcode('qr-reader');
       S.qrScanner.start(
         { facingMode:'environment' },
@@ -1104,13 +1433,13 @@ export function createTableModule(ctx){
           const player_uid = text?.trim().replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
           if (!player_uid){
             Sound.error();
-            return alert('QR không hợp lệ');
+            return alert('Invalid QR code');
           }
 
           const exists = await isValidPlayerUID(player_uid);
           if (!exists){
             Sound.error();
-            return alert('❌ UID không tồn tại trong hệ thống');
+            return alert('UID does not exist in system');
           }
 
           assignUID(seatIndex, player_uid);
