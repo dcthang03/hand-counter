@@ -23,8 +23,8 @@ const SB = 25;
 const BB = 50;
 
 /* ===== SUPABASE ===== */
-const SUPABASE_URL = 'https://ymtmipkmknnsqleahlmi.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdG1pcGtta25uc3FsZWFobG1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwOTU1MjUsImV4cCI6MjA4NTY3MTUyNX0.7pEza-TKBKJ_xqdBu93nLo-PRaHDcDIxW-bjZnrFJxw';
+const SUPABASE_URL = 'https://jttwlfsfvaiivlyiyaxz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0dHdsZnNmdmFpaXZseWl5YXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5ODcyNTgsImV4cCI6MjA4NjU2MzI1OH0.1c6iLV7Yznzs_3gQ_dV8Br02F9jJdHWhL-Hl2iASRuQ';
 const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* =====================
@@ -406,7 +406,10 @@ window.dealerBack = function dealerBack() {
 };
 
 async function loadDealersForModal() {
-  const { data, error } = await sbClient.rpc("list_dealers");
+  const { data, error } = await sbClient
+    .from("dealers")
+    .select("dealer_uid, dealer_name")
+    .order("dealer_name", { ascending: true });
   if (error) {
     console.error(error);
     dealerSelect.innerHTML = `<option value="">Load failed</option>`;
@@ -426,10 +429,11 @@ window.submitDealerLogin = async function submitDealerLogin() {
   if (!dealerSelect.value) return;
   if (state.dealerPin.length !== 4) return;
 
-  const { data, error } = await sbClient.rpc("verify_dealer_pin", {
-    p_dealer_uid: dealerSelect.value,
-    p_pin: state.dealerPin,
-  });
+  const { data, error } = await sbClient
+    .from("dealers")
+    .select("dealer_uid, dealer_name, dealer_pin")
+    .eq("dealer_uid", dealerSelect.value)
+    .single();
 
   if (error) {
     console.error(error);
@@ -442,7 +446,7 @@ window.submitDealerLogin = async function submitDealerLogin() {
   }
 
   const row = Array.isArray(data) ? data[0] : data;
-  if (row?.ok) {
+  if (row && String(row.dealer_pin ?? "") === String(state.dealerPin)) {
     state.DEALER_UID = row.dealer_uid;
     state.DEALER_NAME = row.dealer_name;
 

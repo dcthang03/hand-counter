@@ -226,7 +226,10 @@ export function initDealerModal({
   }
 
   async function loadDealersForModal(){
-    const { data, error } = await state.sbClient.rpc('list_dealers');
+    const { data, error } = await state.sbClient
+      .from('dealers')
+      .select('dealer_uid, dealer_name')
+      .order('dealer_name', { ascending: true });
     if (error){
       console.error(error);
       dealerSelect.innerHTML = `<option value="">Load failed</option>`;
@@ -247,10 +250,11 @@ export function initDealerModal({
     if (!dealerSelect.value) return;
     if (state.dealerPin.length !== 4) return;
 
-    const { data, error } = await state.sbClient.rpc('verify_dealer_pin', {
-      p_dealer_uid: dealerSelect.value,
-      p_pin: state.dealerPin
-    });
+    const { data, error } = await state.sbClient
+      .from('dealers')
+      .select('dealer_uid, dealer_name, dealer_pin')
+      .eq('dealer_uid', dealerSelect.value)
+      .single();
 
     if (error){
       console.error(error);
@@ -263,7 +267,7 @@ export function initDealerModal({
     }
 
     const row = Array.isArray(data) ? data[0] : data;
-    if (row?.ok){
+    if (row && String(row.dealer_pin ?? "") === String(state.dealerPin)){
       state.DEALER_UID = row.dealer_uid;
       state.DEALER_NAME = row.dealer_name;
 
