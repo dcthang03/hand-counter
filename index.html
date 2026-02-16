@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Tour Counter</title>
+  <title>Hand Counter System</title>
 
   <link rel="stylesheet" href="./css/style.css">
 </head>
@@ -15,8 +15,8 @@
       <div class="table-wrap">
         <div class="table" id="table">
           <div id="tableNameLabel">
-            <div id="rivebaseMark">Rivebase</div>
-            <div id="potCenter">$0<small>POT</small></div>
+            <div id="rivebaseMark">rivebase</div>
+            <div id="potCenter">0<small>Preflop</small></div>
           </div>
 
           <div id="dealerToken" aria-hidden="true">
@@ -42,10 +42,22 @@
     <div class="control-panel">
       <div class="cpTop">
         <div>
-          <div class="cpTitle" id="actingTitle">No seat selected</div>
-          <div class="cpSub" id="streetLabel">Preflop</div>
+          <div class="cpTitle" id="actingTitle"></div>
         </div>
-        <div class="pill">Blinds <b id="blindLabel">25 / 50</b></div>
+        <div class="blind-tools">
+          <div class="pill">Blinds <b id="blindLabel">25 / 50(50)</b></div>
+          <div class="pill">Level <b id="levelLabel">-</b></div>
+          <select id="structureUidSelect" class="structure-select">
+            <option value="">Structure UID</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="blind-actions">
+        <button class="quickBtn blind-up-btn" id="dealerBackBtn" type="button">Dealer-</button>
+        <button class="quickBtn blind-up-btn" id="dealerNextBtn" type="button">Dealer+</button>
+        <button class="quickBtn blind-up-btn" id="blindDownBtn" type="button">Level-</button>
+        <button class="quickBtn blind-up-btn" id="blindUpBtn" type="button">Level+</button>
       </div>
 
       <div class="pills">
@@ -54,9 +66,9 @@
         <div class="pill">Draft <b id="draftLabel">0</b></div>
       </div>
       <div class="quickRow">
-        <button class="quickBtn" id="q25" type="button">+25</button>
-        <button class="quickBtn" id="q100" type="button">+100</button>
-        <button class="quickBtn" id="q500" type="button">+500</button>
+        <button class="quickBtn" id="q25" type="button">+100</button>
+        <button class="quickBtn" id="q100" type="button">+500</button>
+        <button class="quickBtn" id="q500" type="button">+1000</button>
         <button class="quickBtn quickBack" id="backBtn" type="button">Back</button>
       </div>
 

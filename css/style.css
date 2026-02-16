@@ -298,7 +298,7 @@ input, button { font-size: 16px; }
     0 14px 35px rgba(0,0,0,.35),
     inset 0 1px 0 rgba(255,255,255,.08);
   transition: filter .15s ease, box-shadow .15s ease, opacity .15s ease;
-  overflow:hidden;
+  overflow:visible;
 }
 .seat .seatNo{
   font-size:10px;
@@ -311,6 +311,9 @@ input, button { font-size: 16px; }
   font-weight:1100;
   letter-spacing:.2px;
   color: rgba(234,240,255,.92);
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 .seat.occupied{
   background: linear-gradient(180deg, rgba(34,211,238,.92), rgba(2,132,199,.88));
@@ -321,8 +324,20 @@ input, button { font-size: 16px; }
 .seat.occupied .stake{ color: rgba(0,16,24,.92); }
 .seat.folded{ opacity:.55; }
 .seat.acting{
-  box-shadow: 0 0 0 3px rgba(34,211,238,.22), 0 22px 55px rgba(0,0,0,.35);
-  filter: saturate(1.05);
+  border:3px solid rgba(249,115,22,.98);
+  box-shadow:
+    0 0 0 4px rgba(249,115,22,.30),
+    0 22px 55px rgba(0,0,0,.35);
+  filter: saturate(1.08) brightness(1.03);
+  z-index: 20;
+}
+.seat.acting::before{
+  content:"";
+  position:absolute;
+  inset:-8px;
+  border-radius:50%;
+  pointer-events:none;
+  border:3px solid rgba(251,146,60,.92); /* orange base ring */
 }
 .seat.winner{
   box-shadow: 0 0 0 3px var(--winner-color, rgba(245,158,11,.85)), 0 22px 55px rgba(0,0,0,.35);
@@ -336,11 +351,16 @@ input, button { font-size: 16px; }
   position:absolute;
   z-index: 25;
   pointer-events:none;
-  padding:6px 10px;
-  border-radius:999px;
+  width:26px;
+  height:26px;
+  padding:0;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   font-weight:1100;
-  font-size:12px;
-  letter-spacing:.2px;
+  font-size:9px;
+  letter-spacing:0;
   background: rgba(0,0,0,.40);
   border:1px solid rgba(255,255,255,.14);
   color: rgba(255,255,255,.92);
@@ -354,6 +374,30 @@ input, button { font-size: 16px; }
   background: rgba(34,211,238,.18);
   border-color: rgba(34,211,238,.28);
 }
+
+.bba-float{
+  position:absolute;
+  z-index: 24;
+  pointer-events:none;
+  width:24px;
+  height:24px;
+  padding:0;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:1100;
+  font-size:9px;
+  letter-spacing:0;
+  background: rgba(0,0,0,.34);
+  border:1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.90);
+  box-shadow: 0 14px 34px rgba(0,0,0,.40);
+  transform: translate(-50%,-50%);
+  opacity:0;
+  transition: opacity .12s ease;
+}
+.bba-float.show{ opacity:1; }
 
 /* ===== Dealer token ===== */
 #dealerToken{
@@ -399,6 +443,52 @@ input, button { font-size: 16px; }
   justify-content:space-between;
   gap:10px;
   margin-bottom:10px;
+  overflow: visible;
+}
+.blind-tools{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  overflow: visible;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.blind-tools .pill,
+.blind-tools .structure-select{
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.structure-select{
+  height:34px;
+  min-width:120px;
+  max-width:150px;
+  padding:0 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+  color:#fff;
+  font-size:12px;
+  font-weight:1000;
+  outline:none;
+}
+.blind-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+  flex-wrap: nowrap;
+}
+.blind-up-btn{
+  flex:1;
+  min-width:0;
+  padding:12px 12px;
+  border-radius:14px;
+  font-size:16px;
+  background: linear-gradient(180deg, rgba(34,197,94,.92), rgba(21,128,61,.90));
+  color:#03110A;
 }
 .cpTitle{
   font-weight:1100;
@@ -411,7 +501,7 @@ input, button { font-size: 16px; }
   color: rgba(234,240,255,.60);
 }
 .pills{
-  display:flex;
+  display:none;
   gap:10px;
   flex-wrap:wrap;
   margin-bottom:10px;
@@ -452,6 +542,37 @@ input, button { font-size: 16px; }
   background: linear-gradient(180deg, rgba(148,163,184,.22), rgba(148,163,184,.10));
   color: rgba(234,240,255,.85);
   border:1px solid rgba(255,255,255,.10);
+}
+
+.quick-assign-menu{
+  position: fixed;
+  z-index: 9997;
+  display: none;
+  min-width: 130px;
+  max-width: 170px;
+  max-height: 55dvh;
+  overflow-y: auto;
+  border-radius: 12px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(7,10,18,.96);
+  box-shadow: 0 20px 48px rgba(0,0,0,.5);
+  padding: 6px;
+}
+.quick-assign-item{
+  width:100%;
+  border:none;
+  cursor:pointer;
+  text-align:left;
+  padding:10px 10px;
+  border-radius:8px;
+  font-weight:1100;
+  font-size:13px;
+  color: rgba(234,240,255,.95);
+  background: transparent;
+}
+.quick-assign-item:active{
+  transform: translateY(1px);
+  background: rgba(255,255,255,.08);
 }
 
 .btnRow{

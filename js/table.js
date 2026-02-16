@@ -7,12 +7,14 @@ export function createTableModule(ctx){
   const S = ctx.state;
   const sb = ctx.sbClient;
   const Sound = ctx.Sound;
+  const QUICK_ASSIGN_OPTIONS = [100000, 50000, 10000, 5000, 1000, 500, 100];
 
   // ===== DOM (lazy init) =====
-  let tableEl, potLabel, potCenter, actingTitle, streetLabel, blindLabel, toCallLabel, draftLabel;
+  let tableEl, potLabel, potCenter, actingTitle, streetLabel, blindLabel, toCallLabel, draftLabel, levelLabel;
   let betBtn, foldBtn, allinBtn, backBtn, nextBtn;
   let q25, q100, q500;
   let thumb, track;
+  let blindUpBtn, blindDownBtn, dealerBackBtn, dealerNextBtn, structureUidSelect;
 
   function cacheDom(){
     tableEl = document.getElementById('table');
@@ -22,6 +24,7 @@ export function createTableModule(ctx){
     actingTitle = document.getElementById("actingTitle");
     streetLabel = document.getElementById("streetLabel");
     blindLabel = document.getElementById("blindLabel");
+    levelLabel = document.getElementById("levelLabel");
     toCallLabel = document.getElementById("toCallLabel");
     draftLabel = document.getElementById("draftLabel");
 
@@ -37,6 +40,11 @@ export function createTableModule(ctx){
 
     thumb = document.getElementById('slideThumb');
     track = document.getElementById('newHandTrack');
+    blindUpBtn = document.getElementById("blindUpBtn");
+    blindDownBtn = document.getElementById("blindDownBtn");
+    dealerBackBtn = document.getElementById("dealerBackBtn");
+    dealerNextBtn = document.getElementById("dealerNextBtn");
+    structureUidSelect = document.getElementById("structureUidSelect");
   }
 
   // ===== Seat geometry =====
@@ -93,7 +101,30 @@ export function createTableModule(ctx){
     const cx = rect.width / 2;
     const cy = rect.height / 2;
 
-    const ORBIT_GAP = 42;
+    // Match dealer token orbit radius.
+    const DEALER_SIZE = 18;
+    const ORBIT_GAP = 18;
+    const rX = cx - (DEALER_SIZE/2) - S.TABLE_BORDER - S.SAFE_PADDING - ORBIT_GAP;
+    const rY = cy - (DEALER_SIZE/2) - S.TABLE_BORDER - S.SAFE_PADDING - ORBIT_GAP;
+
+    const a = seatAngleFor(seatNum);
+    const x = cx + Math.cos(a) * rX;
+    const y = cy + Math.sin(a) * rY;
+
+    bf.style.left = x + "px";
+    bf.style.top  = y + "px";
+  }
+
+  function positionBBAFloat(seatNum){
+    const bf = S.bbaFloats?.[seatNum]?.el;
+    if(!bf || !tableEl) return;
+
+    const rect = tableEl.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+
+    // Keep BBA closer to table center than normal bet-float.
+    const ORBIT_GAP = 70;
     const rX = cx - S.TABLE_BORDER - S.SAFE_PADDING - ORBIT_GAP;
     const rY = cy - S.TABLE_BORDER - S.SAFE_PADDING - ORBIT_GAP;
 
@@ -149,6 +180,231 @@ export function createTableModule(ctx){
     updateUI();
   }
 
+  function toPosInt(v, fallback = 0){
+    const n = Number(v);
+    if(!Number.isFinite(n) || n < 0) return Number(fallback || 0);
+    return Math.trunc(n);
+  }
+
+  function formatChip(v){
+    const n = Math.trunc(Number(v) || 0);
+    const sign = n < 0 ? "-" : "";
+    const abs = Math.abs(n);
+    return sign + String(abs).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+
+  function normalizeStructureRow(row){
+    return {
+      structure_uid: String(row?.structure_uid || "").trim(),
+      structure_level: String(row?.structure_level ?? "").trim(),
+      sort_order: Number.isFinite(Number(row?.sort_order)) ? Number(row.sort_order) : 0,
+      is_break: !!row?.is_break,
+      break_note: String(row?.break_note || "").trim(),
+      small_blind: toPosInt(row?.small_blind, 0),
+      big_blind: toPosInt(row?.big_blind, 0),
+      bba: toPosInt(row?.bba, 0),
+    };
+  }
+
+  function applyStructureByIndex(structureUid, idx, { persist = true } = {}){
+    const uid = String(structureUid || "");
+    const rows = S.structureRowsByUid?.[uid] || [];
+    if(!rows.length) return false;
+
+    const safeIdx = Math.max(0, Math.min(Number(idx || 0), rows.length - 1));
+    const row = rows[safeIdx];
+    S.structureUid = uid;
+    S.structureIndexByUid[uid] = safeIdx;
+    S.structureLevel = String(row.structure_level || "");
+    S.SB = toPosInt(row.small_blind, 0);
+    S.BB = toPosInt(row.big_blind, 0);
+    S.BBA = toPosInt(row.bba, 0);
+
+    if(structureUidSelect){
+      structureUidSelect.value = uid;
+    }
+
+    if(persist){
+      localStorage.setItem("structure_uid", S.structureUid);
+      localStorage.setItem("structure_level", S.structureLevel);
+    }
+    updateUI();
+    return true;
+  }
+
+  function renderStructureUidOptions(){
+    if(!structureUidSelect) return;
+    const uids = Object.keys(S.structureRowsByUid || {}).sort((a, b) => a.localeCompare(b));
+    if(!uids.length){
+      structureUidSelect.innerHTML = `<option value="">No structure</option>`;
+      return;
+    }
+    structureUidSelect.innerHTML =
+      `<option value="">Structure UID</option>` +
+      uids.map((uid) => `<option value="${uid}">${uid}</option>`).join("");
+  }
+
+  function pickInitialStructureSelection(){
+    const savedUid = String(localStorage.getItem("structure_uid") || "");
+    const savedLevel = String(localStorage.getItem("structure_level") || "");
+
+    const availableUids = Object.keys(S.structureRowsByUid || {});
+    if(!availableUids.length) return false;
+
+    const uid = S.structureRowsByUid[savedUid] ? savedUid : availableUids.sort((a, b) => a.localeCompare(b))[0];
+    const rows = S.structureRowsByUid[uid] || [];
+    let idx = 0;
+    if(savedLevel){
+      const found = rows.findIndex((r) => String(r.structure_level) === savedLevel);
+      if(found >= 0) idx = found;
+    }
+    return applyStructureByIndex(uid, idx, { persist: true });
+  }
+
+  async function loadStructuresFromDb(){
+    const { data, error } = await sb
+      .from("structures")
+      .select("structure_uid, structure_level, sort_order, is_break, break_note, small_blind, big_blind, bba")
+      .order("structure_uid", { ascending: true })
+      .order("sort_order", { ascending: true });
+
+    if(error){
+      console.error("loadStructuresFromDb error:", error);
+      return false;
+    }
+
+    const byUid = {};
+    for(const raw of (data || [])){
+      const row = normalizeStructureRow(raw);
+      if(!row.structure_uid) continue;
+      if(!byUid[row.structure_uid]) byUid[row.structure_uid] = [];
+      byUid[row.structure_uid].push(row);
+    }
+
+    Object.keys(byUid).forEach((uid) => {
+      byUid[uid].sort((a, b) => {
+        const ao = Number(a.sort_order);
+        const bo = Number(b.sort_order);
+        if(Number.isFinite(ao) && Number.isFinite(bo) && ao !== bo) return ao - bo;
+        return String(a.structure_level).localeCompare(String(b.structure_level), undefined, { numeric: true });
+      });
+    });
+
+    S.structureRowsByUid = byUid;
+    renderStructureUidOptions();
+    pickInitialStructureSelection();
+    return true;
+  }
+
+  async function initStructuresOnce(){
+    if(S.__structuresLoaded || S.__structuresLoading) return;
+    S.__structuresLoading = true;
+    const ok = await loadStructuresFromDb();
+    S.__structuresLoading = false;
+    if(ok) S.__structuresLoaded = true;
+  }
+
+  function bindStructureControlsOnce(){
+    if(S.__structureControlsBound) return;
+    S.__structureControlsBound = true;
+
+    structureUidSelect?.addEventListener("change", () => {
+      if(!ctx.requireDealer()) return;
+      const uid = String(structureUidSelect.value || "");
+      if(!uid){
+        Sound.error();
+        return;
+      }
+      applyStructureByIndex(uid, 0, { persist: true });
+      if(S.handActive && S.DEALER_UID){
+        restartHandForBlindChange();
+      }
+      Sound.tick();
+    });
+
+    blindUpBtn?.addEventListener("click", () => {
+      if(!ctx.requireDealer()) return;
+      const uid = String(S.structureUid || "");
+      const rows = S.structureRowsByUid?.[uid] || [];
+      if(!uid || !rows.length){
+        Sound.error();
+        return;
+      }
+
+      const cur = Number(S.structureIndexByUid?.[uid] || 0);
+      const next = cur + 1;
+      if(next >= rows.length){
+        Sound.reject();
+        return;
+      }
+
+      applyStructureByIndex(uid, next, { persist: true });
+      if(S.handActive && S.DEALER_UID){
+        restartHandForBlindChange();
+      }
+      Sound.success();
+    });
+
+    blindDownBtn?.addEventListener("click", () => {
+      if(!ctx.requireDealer()) return;
+      const uid = String(S.structureUid || "");
+      const rows = S.structureRowsByUid?.[uid] || [];
+      if(!uid || !rows.length){
+        Sound.error();
+        return;
+      }
+
+      const cur = Number(S.structureIndexByUid?.[uid] || 0);
+      const next = cur - 1;
+      if(next < 0){
+        Sound.reject();
+        return;
+      }
+
+      applyStructureByIndex(uid, next, { persist: true });
+      if(S.handActive && S.DEALER_UID){
+        restartHandForBlindChange();
+      }
+      Sound.success();
+    });
+
+    dealerBackBtn?.addEventListener("click", async () => {
+      if(!ctx.requireDealer()) return;
+      await nudgeDealerSeat(-1);
+      Sound.tick();
+    });
+
+    dealerNextBtn?.addEventListener("click", async () => {
+      if(!ctx.requireDealer()) return;
+      await nudgeDealerSeat(1);
+      Sound.tick();
+    });
+  }
+
+  async function nudgeDealerSeat(step){
+    const dir = (Number(step) >= 0) ? 1 : -1;
+    const cur = Number(S.dealerPosSeat || 1);
+    const next = ((cur - 1 + dir + S.SEAT_COUNT) % S.SEAT_COUNT) + 1;
+    S.dealerPosSeat = next;
+    if(S.handActive){
+      restartHandForBlindChange();
+    }else{
+      positionDealerToken();
+      updateUI();
+    }
+
+    if(!S.TABLE_UID || !S.DEALER_UID) return;
+    try{
+      await sb.rpc('advance_table_state', {
+        p_table_uid: S.TABLE_UID,
+        p_dealer_uid: S.DEALER_UID,
+        p_next_seat: next
+      });
+    }catch(e){
+      console.error("nudgeDealerSeat advance_table_state error:", e);
+    }
+  }
+
   // =========================================================
   // HAND ENGINE (UPDATED)
   // - Bet = nháº­p báº±ng nÃºt +..., báº¥m Bet Ä‘á»ƒ commit vÃ  auto qua ngÆ°á»i
@@ -180,6 +436,13 @@ export function createTableModule(ctx){
     S.refundsApplied = false;
     S.autoSettled = false;
     S.bbSeat = null;
+    S.bbaPostedBySeat = {};
+    S.postedSBAmount = 0;
+    S.postedBBAmount = 0;
+    S.postedBBAAmount = 0;
+    S.handSB = toPosInt(S.SB, 0);
+    S.handBB = toPosInt(S.BB, 0);
+    S.handBBA = toPosInt(S.BBA, 0);
     S.bbOptionPending = false;
     S.betTarget = 0;
 
@@ -191,10 +454,19 @@ export function createTableModule(ctx){
 
   // âœ… Pot hiá»ƒn thá»‹ = pot Ä‘Ã£ gom xong (khÃ´ng cá»™ng bet-float Ä‘ang náº±m ngoÃ i pot)
   function getPotTotal(){
-    return Number(S.handPot || 0);
+    const base = Number(S.handPot || 0);
+    if(S.handActive && S.handStreet === "Preflop"){
+      return base + Number(S.postedSBAmount || 0) + Number(S.postedBBAmount || 0);
+    }
+    return base;
   }
 
   function getWinnerColorForSeat(seatNum){
+    const potCount = Number(S.potBreakdown?.length || 0);
+    if(S.handStreet === "Showdown" && potCount <= 1){
+      // Single main pot: keep one fixed color regardless of selected winner.
+      return "#f59e0b";
+    }
     const palette = [
       "#22d3ee", "#f59e0b", "#34d399", "#fb7185",
       "#60a5fa", "#f97316", "#a78bfa", "#facc15"
@@ -220,7 +492,7 @@ export function createTableModule(ctx){
           return (
             `<div class="pot-line${wonClass}"${style}>` +
               `<span class="pot-label">${label}</span>` +
-              `<span class="pot-amount">$${amount}</span>` +
+              `<span class="pot-amount">${formatChip(amount)}</span>` +
             `</div>`
           );
         }).join("");
@@ -229,7 +501,7 @@ export function createTableModule(ctx){
       }
     }
 
-    potCenter.innerHTML = `<div class="pot-total">$${total}</div><small>POT</small>`;
+    potCenter.innerHTML = `<div class="pot-total">${formatChip(total)}</div><small>${S.handStreet}</small>`;
   }
 
   function getSeatStack(seatNum){
@@ -432,7 +704,14 @@ export function createTableModule(ctx){
       if(utg && isActionableSeat(utg)) return utg;
       return findNextActingSeat(utg || S.dealerPosSeat);
     }
-    // Flop/Turn/River: ngÆ°á»i gáº§n dealer token nháº¥t (SB) cÃ²n inHand
+    // Heads-up postflop: BB acts first.
+    const occ = getOccupiedSeatsClockwiseFrom(S.dealerPosSeat);
+    if(occ.length === 2){
+      const bbSeat = occ[1] ?? null;
+      if(bbSeat && isActionableSeat(bbSeat)) return bbSeat;
+      if(bbSeat) return findNextActingSeat(bbSeat) || firstToActForStreet("Preflop");
+    }
+    // Flop/Turn/River (3+ players): nearest seat clockwise from dealer (SB) acts first.
     const sbSeat = getSBSeat();
     if(!sbSeat) return firstToActForStreet("Preflop");
     if(isActionableSeat(sbSeat)) return sbSeat;
@@ -441,13 +720,29 @@ export function createTableModule(ctx){
 
   function applyBlindToSeat(seatNum, amount){
     const uid = S.seatState?.[seatNum]?.player_uid;
-    if(!uid) return;
+    if(!uid) return 0;
 
     const paid = Math.min(Number(amount), Number(S.stackByUid[uid] ?? 0));
     S.stackByUid[uid] = Number(S.stackByUid[uid] ?? 0) - paid;
     S.handState[seatNum].contributed = Number(S.handState[seatNum].contributed || 0) + paid;
     addContribution(seatNum, paid);
     S.handState[seatNum].hasActed = true; // blinds Ä‘Æ°á»£c coi nhÆ° Ä‘Ã£ "Ä‘áº·t"
+    return paid;
+  }
+
+  function applyBBAToSeat(seatNum, amount){
+    const uid = S.seatState?.[seatNum]?.player_uid;
+    if(!uid) return 0;
+
+    const paid = Math.min(Number(amount), Number(S.stackByUid[uid] ?? 0));
+    if(paid <= 0) return 0;
+
+    // BBA goes directly into pot and committed total, but not into current street contributed.
+    S.stackByUid[uid] = Number(S.stackByUid[uid] ?? 0) - paid;
+    S.handPot = Number(S.handPot || 0) + paid;
+    addContribution(seatNum, paid);
+    S.bbaPostedBySeat[seatNum] = Number(S.bbaPostedBySeat?.[seatNum] || 0) + paid;
+    return paid;
   }
 
   function recomputeBetTarget(){
@@ -474,12 +769,13 @@ export function createTableModule(ctx){
     const draft = Math.max(0, Number(S.betDraft || 0));
     const target = Number(S.betTarget || 0);
     const toCall = Math.max(0, target - cur);
-    const nextTotal = cur + draft;
+    const uid = S.seatState?.[seat]?.player_uid;
+    const stack = Number(S.stackByUid[uid] ?? 0);
     const isBBOptionSpot = (
       S.handStreet === "Preflop" &&
       Number(S.bbSeat || 0) === Number(seat) &&
       !!S.bbOptionPending &&
-      Number(target || 0) === Number(S.BB || 0) &&
+      Number(target || 0) === Number(S.handBB || 0) &&
       toCall === 0
     );
 
@@ -489,12 +785,16 @@ export function createTableModule(ctx){
     }
 
     if(toCall > 0){
-      if(draft > toCall) return `Raise ${draft}`;
-      return `Call ${toCall}`;
+      if(stack > 0 && draft >= stack){
+        if(stack > toCall) return `Raise ${formatChip(stack)}`;
+        return `Call ${formatChip(stack)}`;
+      }
+      if(draft > toCall) return `Raise ${formatChip(draft)}`;
+      return `Call ${formatChip(toCall)}`;
     }
 
     if(draft > 0){
-      return `Bet ${draft}`;
+      return `Bet ${formatChip(draft)}`;
     }
     return "Check";
   }
@@ -519,9 +819,17 @@ export function createTableModule(ctx){
       autoSettled: !!S.autoSettled,
       bbSeat: S.bbSeat,
       bbOptionPending: !!S.bbOptionPending,
+      handSB: S.handSB,
+      handBB: S.handBB,
+      handBBA: S.handBBA,
+      postedSBAmount: S.postedSBAmount,
+      postedBBAmount: S.postedBBAmount,
+      postedBBAAmount: S.postedBBAAmount,
+      handStartStackByUid: JSON.parse(JSON.stringify(S.handStartStackByUid || {})),
       betTarget: S.betTarget,
       handPot: S.handPot,
       totalContribBySeat: JSON.parse(JSON.stringify(S.totalContribBySeat || {})),
+      bbaPostedBySeat: JSON.parse(JSON.stringify(S.bbaPostedBySeat || {})),
       stackByUid: JSON.parse(JSON.stringify(S.stackByUid)),
       handState: JSON.parse(JSON.stringify(S.handState)),
       dealerPosSeat: S.dealerPosSeat
@@ -543,10 +851,18 @@ export function createTableModule(ctx){
     S.autoSettled = !!snap.autoSettled;
     S.bbSeat = snap.bbSeat ?? null;
     S.bbOptionPending = !!snap.bbOptionPending;
+    S.handSB = toPosInt(snap.handSB, S.SB);
+    S.handBB = toPosInt(snap.handBB, S.BB);
+    S.handBBA = toPosInt(snap.handBBA, S.BBA);
+    S.postedSBAmount = toPosInt(snap.postedSBAmount, 0);
+    S.postedBBAmount = toPosInt(snap.postedBBAmount, 0);
+    S.postedBBAAmount = toPosInt(snap.postedBBAAmount, 0);
+    S.handStartStackByUid = snap.handStartStackByUid || {};
     S.betTarget = snap.betTarget;
     S.dealerPosSeat = snap.dealerPosSeat;
     S.handPot = Number(snap.handPot || 0);
     S.totalContribBySeat = snap.totalContribBySeat || {};
+    S.bbaPostedBySeat = snap.bbaPostedBySeat || {};
 
     Object.keys(S.stackByUid).forEach(k => delete S.stackByUid[k]);
     Object.keys(snap.stackByUid).forEach(k => S.stackByUid[k] = snap.stackByUid[k]);
@@ -569,19 +885,160 @@ export function createTableModule(ctx){
     if(!uid) return;
 
     const stack = Number(S.stackByUid[uid] ?? 0);
-    const next = S.betDraft + Number(x);
-
-    if(next > stack){
-      Sound.error();
-      alert("Not enough stack");
-      return;
-    }
+    const next = Math.min(stack, S.betDraft + Number(x));
 
     // Track each draft increment so Back can undo draft edits too.
     pushHistory();
     S.betDraft = next;
     Sound.tick();
     updateUI();
+  }
+
+  function normalizeQuickAddValues(values){
+    const fallback = [100, 500, 1000];
+    if(!Array.isArray(values) || values.length < 3) return fallback;
+    return values.slice(0, 3).map((v, idx) => {
+      const n = Number(v);
+      if(!Number.isFinite(n) || n <= 0) return fallback[idx];
+      return Math.trunc(n);
+    });
+  }
+
+  function loadQuickAddValues(){
+    try{
+      const raw = localStorage.getItem("quick_add_values");
+      if(!raw){
+        S.quickAddValues = normalizeQuickAddValues(S.quickAddValues);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      S.quickAddValues = normalizeQuickAddValues(parsed);
+    }catch(e){
+      S.quickAddValues = normalizeQuickAddValues(S.quickAddValues);
+    }
+  }
+
+  function saveQuickAddValues(){
+    try{
+      localStorage.setItem("quick_add_values", JSON.stringify(normalizeQuickAddValues(S.quickAddValues)));
+    }catch(e){}
+  }
+
+  function applyQuickAddButtonLabels(){
+    S.quickAddValues = normalizeQuickAddValues(S.quickAddValues);
+    if(q25) q25.textContent = `+${formatChip(S.quickAddValues[0])}`;
+    if(q100) q100.textContent = `+${formatChip(S.quickAddValues[1])}`;
+    if(q500) q500.textContent = `+${formatChip(S.quickAddValues[2])}`;
+  }
+
+  function ensureQuickAssignMenu(){
+    if(S.quickAssignMenuEl) return S.quickAssignMenuEl;
+    const el = document.createElement("div");
+    el.className = "quick-assign-menu";
+    document.body.appendChild(el);
+    S.quickAssignMenuEl = el;
+    return el;
+  }
+
+  function closeQuickAssignMenu(){
+    const menu = S.quickAssignMenuEl;
+    if(!menu) return;
+    menu.style.display = "none";
+    menu.innerHTML = "";
+    if(S.__quickAssignOutsideHandler){
+      document.removeEventListener("pointerdown", S.__quickAssignOutsideHandler, true);
+      S.__quickAssignOutsideHandler = null;
+    }
+    if(S.__quickAssignResizeHandler){
+      window.removeEventListener("resize", S.__quickAssignResizeHandler);
+      S.__quickAssignResizeHandler = null;
+    }
+    S.__quickAssignTargetBtn = null;
+  }
+
+  function openQuickAssignMenu(targetBtn, quickIndex){
+    const menu = ensureQuickAssignMenu();
+    const rect = targetBtn.getBoundingClientRect();
+
+    menu.innerHTML = QUICK_ASSIGN_OPTIONS
+      .map((v) => `<button type="button" class="quick-assign-item" data-v="${v}">+${formatChip(v)}</button>`)
+      .join("");
+    menu.style.display = "block";
+
+    const menuRect = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - menuRect.width - 8));
+    const top = Math.max(8, rect.top - menuRect.height - 8);
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+
+    menu.querySelectorAll(".quick-assign-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        const v = Number(e.currentTarget?.dataset?.v || 0);
+        if(v <= 0) return;
+        S.quickAddValues = normalizeQuickAddValues(S.quickAddValues);
+        S.quickAddValues[quickIndex] = v;
+        saveQuickAddValues();
+        applyQuickAddButtonLabels();
+        Sound.tick();
+        closeQuickAssignMenu();
+      });
+    });
+
+    S.__quickAssignTargetBtn = targetBtn;
+    S.__quickAssignOutsideHandler = (ev) => {
+      const t = ev.target;
+      if(menu.contains(t) || t === S.__quickAssignTargetBtn) return;
+      closeQuickAssignMenu();
+    };
+    document.addEventListener("pointerdown", S.__quickAssignOutsideHandler, true);
+
+    S.__quickAssignResizeHandler = () => closeQuickAssignMenu();
+    window.addEventListener("resize", S.__quickAssignResizeHandler);
+  }
+
+  function bindQuickAddButton(btn, quickIndex){
+    if(!btn) return;
+    let holdTimer = null;
+    let holdTriggered = false;
+
+    btn.addEventListener("pointerdown", (e) => {
+      if(e.button !== undefined && e.button !== 0) return;
+      holdTriggered = false;
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => {
+        holdTriggered = true;
+        openQuickAssignMenu(btn, quickIndex);
+      }, S.HOLD_TIME);
+    });
+
+    const onPointerEnd = () => {
+      if(holdTimer){
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+      if(holdTriggered){
+        holdTriggered = false;
+        return;
+      }
+      S.quickAddValues = normalizeQuickAddValues(S.quickAddValues);
+      const val = Number(S.quickAddValues[quickIndex] || 0);
+      if(val > 0) addToDraft(val);
+    };
+
+    btn.addEventListener("pointerup", onPointerEnd);
+    btn.addEventListener("pointercancel", () => {
+      if(holdTimer){
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+      holdTriggered = false;
+    });
+    btn.addEventListener("pointerleave", () => {
+      if(holdTimer){
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    });
   }
 
   function resetOthersActedAfterRaise(actorSeat){
@@ -599,6 +1056,7 @@ export function createTableModule(ctx){
 
     const uid = S.seatState?.[S.actingSeat]?.player_uid;
     if(!uid) return false;
+    const beforeStacks = JSON.parse(JSON.stringify(S.stackByUid || {}));
 
     const stack = Number(S.stackByUid[uid] ?? 0);
     const amt = Math.min(S.betDraft, stack);
@@ -607,6 +1065,11 @@ export function createTableModule(ctx){
     const beforeTarget = Number(S.betTarget || 0);
 
     S.stackByUid[uid] = stack - amt;
+    // Safety: this action may only change actor stack, never other seats.
+    Object.keys(beforeStacks).forEach((k) => {
+      if(k === uid) return;
+      S.stackByUid[k] = Number(beforeStacks[k] ?? S.stackByUid[k] ?? 0);
+    });
     S.handState[S.actingSeat].contributed = Number(S.handState[S.actingSeat].contributed || 0) + amt;
     addContribution(S.actingSeat, amt);
     S.handState[S.actingSeat].hasActed = true;
@@ -656,7 +1119,7 @@ export function createTableModule(ctx){
     if(
       S.handStreet === "Preflop" &&
       S.bbOptionPending &&
-      Number(S.betTarget || 0) === Number(S.BB || 0)
+      Number(S.betTarget || 0) === Number(S.handBB || 0)
     ){
       const bb = Number(S.bbSeat || 0);
       if(bb && isActionableSeat(bb)){
@@ -742,6 +1205,9 @@ export function createTableModule(ctx){
       }
     }
 
+    // Snapshot stacks before posting any blind for this hand.
+    S.handStartStackByUid = JSON.parse(JSON.stringify(S.stackByUid || {}));
+
     // set inHand false cho gháº¿ trá»‘ng
     for(let i=1;i<=S.SEAT_COUNT;i++){
       if(!isSeatOccupied(i)) S.handState[i].inHand = false;
@@ -751,12 +1217,28 @@ export function createTableModule(ctx){
     const sbSeat = occ[0] ?? null;
     const bbSeat = occ[1] ?? null;
 
-    if(sbSeat) applyBlindToSeat(sbSeat, S.SB);
-    if(bbSeat) applyBlindToSeat(bbSeat, S.BB);
+    S.handSB = toPosInt(S.SB, 0);
+    S.handBB = toPosInt(S.BB, 0);
+    S.handBBA = toPosInt(S.BBA, 0);
+
+    S.postedSBAmount = sbSeat ? Number(applyBlindToSeat(sbSeat, S.handSB) || 0) : 0;
+    S.postedBBAmount = bbSeat ? Number(applyBlindToSeat(bbSeat, S.handBB) || 0) : 0;
+    S.postedBBAAmount = bbSeat ? Number(applyBBAToSeat(bbSeat, S.handBBA) || 0) : 0;
+
+    // Safety guard: only SB/BB seats may lose chips from blind posting.
+    // Any non-blind occupied seat is restored to hand-start snapshot.
+    const blindSeats = new Set([Number(sbSeat || 0), Number(bbSeat || 0)]);
+    for(let seat=1; seat<=S.SEAT_COUNT; seat++){
+      const uid = S.seatState?.[seat]?.player_uid;
+      if(!uid) continue;
+      if(blindSeats.has(Number(seat))) continue;
+      if(S.handStartStackByUid?.[uid] === undefined) continue;
+      S.stackByUid[uid] = Number(S.handStartStackByUid[uid] ?? S.stackByUid[uid] ?? 0);
+    }
 
     S.bbSeat = bbSeat ?? null;
     S.bbOptionPending = !!bbSeat
-      && Number(S.handState?.[bbSeat]?.contributed || 0) >= Number(S.BB || 0)
+      && Number(S.handState?.[bbSeat]?.contributed || 0) >= Number(S.handBB || 0)
       && getSeatStack(bbSeat) > 0;
 
     recomputeBetTarget();
@@ -771,6 +1253,30 @@ export function createTableModule(ctx){
 
     updateUI();
     renderSeats();
+  }
+
+  function restartHandForBlindChange(){
+    const snap = S.handStartStackByUid || {};
+    const hasSnap = Object.keys(snap).length > 0;
+
+    if(hasSnap){
+      Object.keys(S.stackByUid).forEach((k) => delete S.stackByUid[k]);
+      Object.keys(snap).forEach((k) => {
+        S.stackByUid[k] = Number(snap[k] ?? 0);
+      });
+    }else{
+      // Fallback: return all committed amounts from current hand if no snapshot exists.
+      for(let seat=1; seat<=S.SEAT_COUNT; seat++){
+        const uid = S.seatState?.[seat]?.player_uid;
+        if(!uid) continue;
+        const committed = Number(S.totalContribBySeat?.[seat] || 0);
+        if(committed > 0){
+          S.stackByUid[uid] = Number(S.stackByUid[uid] ?? 0) + committed;
+        }
+      }
+    }
+
+    startNewHandLocal();
   }
 
   // ===== advance dealer + payout winner =====
@@ -790,6 +1296,14 @@ export function createTableModule(ctx){
           S.stackByUid[uidW] = Number(S.stackByUid[uidW] ?? 0) + pot;
         }
       }
+    }
+
+    const synced = await syncStacksToPlayers();
+    if(!synced){
+      Sound.error();
+      alert("Sync chips failed. Please slide again.");
+      updateUI();
+      return;
     }
 
     S.winnerSeat = null;
@@ -817,6 +1331,38 @@ export function createTableModule(ctx){
     startNewHandLocal();
   }
 
+  async function syncStacksToPlayers(){
+    const updates = [];
+    for(let i=1;i<=S.SEAT_COUNT;i++){
+      const uid = S.seatState?.[i]?.player_uid;
+      if(!uid) continue;
+      const stake = Math.max(0, Number(S.stackByUid?.[uid] ?? 0));
+      updates.push({ player_uid: uid, stake_tour: stake });
+    }
+
+    if(!updates.length) return true;
+
+    const results = await Promise.all(
+      updates.map((row) =>
+        sb
+          .from("players")
+          .update({ stake_tour: row.stake_tour })
+          .eq("player_uid", row.player_uid)
+      )
+    );
+
+    const hasError = results.some((res) => !!res?.error);
+    if(hasError){
+      console.error("syncStacksToPlayers error:", results);
+      return false;
+    }
+
+    updates.forEach((row) => {
+      S.baseStakeByUid[row.player_uid] = Number(row.stake_tour || 0);
+    });
+    return true;
+  }
+
   // ===== UI render =====
   function renderSeats(){
     if(!tableEl) return;
@@ -837,7 +1383,7 @@ export function createTableModule(ctx){
       s.el.style.top  = (cy + Math.sin(angle)*rY) + 'px';
       s.el.style.transform = 'translate(-50%,-50%)';
 
-      s.el.classList.remove('occupied','acting','winner','folded');
+      s.el.classList.remove('occupied','acting','winner','folded','acting-phase-1','acting-phase-2');
       s.el.style.removeProperty("--winner-color");
 
       const uid = S.seatState[i]?.player_uid;
@@ -846,13 +1392,20 @@ export function createTableModule(ctx){
       if(uid){
         s.el.classList.add('occupied');
         const stack = Number(S.stackByUid[uid] ?? 0);
-        s.stakeEl.textContent = isFinite(stack) ? String(stack) : "-";
+        if(isFinite(stack)){
+          s.stakeEl.textContent = formatChip(stack);
+        }else{
+          s.stakeEl.textContent = "-";
+        }
       }else{
         s.stakeEl.textContent = "-";
       }
 
       if(S.handActive && hs?.inHand === false) s.el.classList.add('folded');
-      if(S.handActive && S.actingSeat === i) s.el.classList.add('acting');
+      if(S.handActive && S.actingSeat === i){
+        s.el.classList.add('acting');
+        s.el.classList.add(Number(S.__actRingPhase || 1) === 2 ? 'acting-phase-2' : 'acting-phase-1');
+      }
       if((S.potWinners || []).includes(i) || S.winnerSeat === i){
         s.el.classList.add('winner');
         s.el.style.setProperty("--winner-color", getWinnerColorForSeat(i));
@@ -867,11 +1420,11 @@ export function createTableModule(ctx){
         const contributed = Number(S.handState[i]?.contributed || 0);
         if(contributed > 0){
           show = true;
-          text = String(contributed);
+          text = formatChip(contributed);
         }
         if(S.handActive && S.actingSeat === i && S.betDraft > 0){
           show = true;
-          text = String((Number(S.handState[i]?.contributed || 0) + S.betDraft));
+          text = formatChip((Number(S.handState[i]?.contributed || 0) + S.betDraft));
           draft = true;
         }
 
@@ -880,48 +1433,48 @@ export function createTableModule(ctx){
         bf.classList.toggle("draft", draft);
         positionBetFloat(i);
       }
+
+      const bbaf = S.bbaFloats?.[i]?.el;
+      if(bbaf){
+        const bba = Number(S.bbaPostedBySeat?.[i] || 0);
+        const showBBA = S.handActive
+          && S.handStreet === "Preflop"
+          && Number(S.bbSeat || 0) === i
+          && bba > 0;
+        bbaf.textContent = showBBA ? `(${formatChip(bba)})` : "";
+        bbaf.classList.toggle("show", showBBA);
+        positionBBAFloat(i);
+      }
     }
 
     positionDealerToken();
   }
 
   function updateUI(){
-    if(blindLabel) blindLabel.textContent = `${S.SB} / ${S.BB}`;
+    if(S.__lastActingSeat !== S.actingSeat || S.__lastActionStreet !== S.handStreet){
+      S.__actRingPhase = (Number(S.__actRingPhase || 0) % 2) + 1; // 1 <-> 2 to restart CSS animation
+      S.__lastActingSeat = S.actingSeat;
+      S.__lastActionStreet = S.handStreet;
+    }
+
+    if(blindLabel) blindLabel.textContent = `${formatChip(S.SB)} / ${formatChip(S.BB)}(${formatChip(S.BBA)})`;
+    if(levelLabel) levelLabel.textContent = S.structureLevel || "-";
     if(streetLabel) streetLabel.textContent = S.handStreet;
 
     const pot = getPotTotal();
-    if(potLabel) potLabel.textContent = String(pot);
+    if(potLabel) potLabel.textContent = formatChip(pot);
     renderCenterPot();
 
     const toCall = (S.handActive && S.actingSeat) ? getToCallForSeat(S.actingSeat) : 0;
-    if(toCallLabel) toCallLabel.textContent = String(toCall);
-    if(draftLabel) draftLabel.textContent = String(S.betDraft);
+    if(toCallLabel) toCallLabel.textContent = formatChip(toCall);
+    if(draftLabel) draftLabel.textContent = formatChip(S.betDraft);
 
     if(betBtn){
       betBtn.textContent = getBetButtonLabel();
     }
 
     if(actingTitle){
-      if(S.handStreet === "Showdown"){
-        ensureShowdownPots();
-        const total = Number(S.potBreakdown?.length || 0);
-        const done = Number(S.potWinners?.length || 0);
-        if(total <= 0){
-          actingTitle.textContent = "Showdown";
-        }else if(done < total){
-          const label = (done === 0) ? "Main pot" : `Side pot ${done}`;
-          actingTitle.textContent = `Pick winner: ${label} (${done + 1}/${total})`;
-        }else{
-          actingTitle.textContent = `Winners ready (${done}/${total})`;
-        }
-      }else if(S.handActive && S.actingSeat){
-        const uid = S.seatState?.[S.actingSeat]?.player_uid;
-        actingTitle.textContent = uid
-          ? `Acting: Seat ${S.actingSeat} • $${S.stackByUid[uid] ?? 0}`
-          : `Acting: Seat ${S.actingSeat}`;
-      }else{
-        actingTitle.textContent = "No seat selected";
-      }
+      actingTitle.textContent = "";
     }
 
     const inActionPhase = (S.handActive && S.actingSeat && S.handStreet !== "Showdown");
@@ -944,6 +1497,31 @@ export function createTableModule(ctx){
       backBtn.style.opacity = backBtn.disabled ? 0.55 : 1;
     }
 
+    if(blindUpBtn){
+      const uid = String(S.structureUid || "");
+      const rows = S.structureRowsByUid?.[uid] || [];
+      const idx = Number(S.structureIndexByUid?.[uid] || 0);
+      const canBlindUp = !!S.DEALER_UID && rows.length > 0 && idx < (rows.length - 1);
+      blindUpBtn.disabled = !canBlindUp;
+      blindUpBtn.style.opacity = canBlindUp ? 1 : 0.55;
+    }
+
+    if(blindDownBtn){
+      const uid = String(S.structureUid || "");
+      const rows = S.structureRowsByUid?.[uid] || [];
+      const idx = Number(S.structureIndexByUid?.[uid] || 0);
+      const canBlindDown = !!S.DEALER_UID && rows.length > 0 && idx > 0;
+      blindDownBtn.disabled = !canBlindDown;
+      blindDownBtn.style.opacity = canBlindDown ? 1 : 0.55;
+    }
+
+    [dealerBackBtn, dealerNextBtn].forEach((btn) => {
+      if(!btn) return;
+      const canMoveDealer = !!S.DEALER_UID;
+      btn.disabled = !canMoveDealer;
+      btn.style.opacity = canMoveDealer ? 1 : 0.55;
+    });
+
     // âœ… slider lock: chá»‰ má»Ÿ khi Showdown + Ä‘Ã£ chá»n winner
     if(track){
       const locked = !isShowdownReadyForPayout();
@@ -959,9 +1537,11 @@ export function createTableModule(ctx){
     if(S.__buttonsBound) return;
     S.__buttonsBound = true;
 
-    q25?.addEventListener("click", () => addToDraft(25));
-    q100?.addEventListener("click", () => addToDraft(100));
-    q500?.addEventListener("click", () => addToDraft(500));
+    loadQuickAddValues();
+    applyQuickAddButtonLabels();
+    bindQuickAddButton(q25, 0);
+    bindQuickAddButton(q100, 1);
+    bindQuickAddButton(q500, 2);
 
     // Single primary action button: Bet / Call / Raise
     betBtn?.addEventListener("click", () => {
@@ -1168,11 +1748,6 @@ export function createTableModule(ctx){
       S.dealerPosSeat = 1;
     }
 
-    if(!isSeatOccupied(S.dealerPosSeat)){
-      const first = findNextOccupiedSeat(S.dealerPosSeat) || findNextOccupiedSeat(0) || 1;
-      S.dealerPosSeat = first;
-    }
-
     positionDealerToken();
   }
 
@@ -1285,7 +1860,14 @@ export function createTableModule(ctx){
 
         const potIndex = S.potWinners.length;
         const eligible = S.potBreakdown[potIndex]?.eligibleSeats || [];
-        const canPick = eligible.includes(i);
+        let canPick = eligible.includes(i);
+        if(!canPick){
+          const alive = getActiveInHandSeats();
+          const isHeadsUpSinglePot = alive.length === 2 && (S.potBreakdown?.length || 0) === 1 && potIndex === 0;
+          if(isHeadsUpSinglePot && alive.includes(i)){
+            canPick = true;
+          }
+        }
         if(!canPick){
           Sound.error();
           return;
@@ -1313,6 +1895,13 @@ export function createTableModule(ctx){
       bf.textContent = "";
       S.betFloats[i] = { el: bf };
       tableEl.appendChild(bf);
+
+      if(!S.bbaFloats) S.bbaFloats = {};
+      const bbaf = document.createElement("div");
+      bbaf.className = "bba-float";
+      bbaf.textContent = "";
+      S.bbaFloats[i] = { el: bbaf };
+      tableEl.appendChild(bbaf);
     }
 
     resetHandState();
@@ -1320,6 +1909,7 @@ export function createTableModule(ctx){
 
     window.addEventListener("resize", () => renderSeats());
     bindButtonsOnce();
+    bindStructureControlsOnce();
   }
 
   // ===== DB seats load + realtime =====
@@ -1423,6 +2013,12 @@ export function createTableModule(ctx){
 
     await refreshStakesForOccupiedSeats();
 
+    if(S.handActive && S.handStreet === "Preflop"){
+      restartHandForBlindChange();
+      updateUI();
+      return;
+    }
+
     if(S.handActive && S.handStreet !== "Showdown"){
       if(S.actingSeat === seat) S.actingSeat = findNextActingSeat(seat) || firstToActForStreet(S.handStreet);
       recomputeBetTarget();
@@ -1483,6 +2079,7 @@ export function createTableModule(ctx){
   // ===== Table session start =====
   async function startTableSession(){
     initPanelOnce();
+    await initStructuresOnce();
 
     await loadSeats();
     await refreshStakesForOccupiedSeats();
@@ -1502,6 +2099,7 @@ export function createTableModule(ctx){
   function init(){
     cacheDom();
     initPanelOnce();
+    initStructuresOnce().then(() => updateUI());
     updateUI();
   }
 

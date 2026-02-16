@@ -21,6 +21,7 @@ const SAFE_PADDING = 8;
 /* ===== BLINDS (fixed) ===== */
 const SB = 25;
 const BB = 50;
+const BBA = 50;
 
 /* ===== SUPABASE ===== */
 const SUPABASE_URL = 'https://jttwlfsfvaiivlyiyaxz.supabase.co';
@@ -90,6 +91,12 @@ const state = {
   SAFE_PADDING,
   SB,
   BB,
+  BBA,
+  structureUid: "",
+  structureLevel: "",
+  structureRowsByUid: {},
+  structureIndexByUid: {},
+  quickAddValues: [100, 500, 1000],
 
   // session
   isSubmitting: false,
