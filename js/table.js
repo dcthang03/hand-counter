@@ -710,7 +710,7 @@ export function createTableModule(ctx){
     S.potBreakdown = [];
     S.potWinners = [];
     S.potWinnerGroups = [];
-    S.potSelectIndex = 0;
+    S.potSelectIndex = -1;
     S.potTapModeBySeat = {};
     S.pendingRefundsBySeat = {};
     S.refundsApplied = false;
@@ -743,18 +743,29 @@ export function createTableModule(ctx){
     return base;
   }
 
-  function getWinnerColorForSeat(seatNum){
-    const potCount = Number(S.potBreakdown?.length || 0);
-    if(S.handStreet === "Showdown" && potCount <= 1){
-      // Single main pot: keep one fixed color regardless of selected winner.
-      return "#f59e0b";
-    }
+  function getWinnerColorForPot(potIndex){
     const palette = [
-      "#22d3ee", "#f59e0b", "#34d399", "#fb7185",
+      "#f59e0b", "#22d3ee", "#34d399", "#fb7185",
       "#60a5fa", "#f97316", "#a78bfa", "#facc15"
     ];
-    const idx = Math.max(0, Number(seatNum || 1) - 1) % palette.length;
+    const idx = Math.max(0, Number(potIndex || 0)) % palette.length;
     return palette[idx];
+  }
+
+  function getWinnerColorForSeat(seatNum){
+    const seat = Number(seatNum || 0);
+    if(seat <= 0) return getWinnerColorForPot(0);
+    if(S.handStreet === "Showdown"){
+      const potLen = Number(S.potBreakdown?.length || 0);
+      for(let p=0; p<potLen; p++){
+        const g = Array.isArray(S.potWinnerGroups?.[p]) ? S.potWinnerGroups[p] : [];
+        if(g.includes(seat)) return getWinnerColorForPot(p);
+      }
+      for(let p=0; p<potLen; p++){
+        if(Number(S.potWinners?.[p] || 0) === seat) return getWinnerColorForPot(p);
+      }
+    }
+    return getWinnerColorForPot(0);
   }
 
   function renderCenterPot(){
@@ -769,12 +780,12 @@ export function createTableModule(ctx){
           const label = (i === 0) ? "Main pot" : `Side pot ${i}`;
           const amount = Number(pot?.amount || 0);
           const winners = Array.isArray(S.potWinnerGroups?.[i]) ? S.potWinnerGroups[i] : [];
-          const winnerSeat = Number(winners[0] || S.potWinners?.[i] || 0);
           const wonClass = winners.length > 0 ? " won" : "";
+          const selectedClass = Number(S.potSelectIndex) === i ? " selected" : "";
           const splitText = winners.length > 1 ? ` <small>(Split ${winners.length})</small>` : "";
-          const style = winnerSeat > 0 ? ` style=\"--winner-color:${getWinnerColorForSeat(winnerSeat)}\"` : "";
+          const style = winners.length > 0 ? ` style=\"--winner-color:${getWinnerColorForPot(i)}\"` : "";
           return (
-            `<div class="pot-line${wonClass}"${style}>` +
+            `<div class="pot-line${wonClass}${selectedClass}" data-pot-index="${i}"${style}>` +
               `<span class="pot-label">${label}${splitText}</span>` +
               `<span class="pot-amount">${formatChip(amount)}</span>` +
             `</div>`
@@ -897,10 +908,16 @@ export function createTableModule(ctx){
       S.potWinnerGroups[i] = legacy > 0 ? [legacy] : [];
     }
     if(!Number.isFinite(Number(S.potSelectIndex))){
-      S.potSelectIndex = 0;
+      S.potSelectIndex = -1;
     }
     const maxPotIdx = Math.max(0, S.potBreakdown.length - 1);
-    S.potSelectIndex = Math.max(0, Math.min(Number(S.potSelectIndex || 0), maxPotIdx));
+    if(S.potBreakdown.length === 1){
+      S.potSelectIndex = 0;
+    }else if(Number(S.potSelectIndex) >= 0){
+      S.potSelectIndex = Math.max(0, Math.min(Number(S.potSelectIndex), maxPotIdx));
+    }else{
+      S.potSelectIndex = -1;
+    }
     S.winnerSeat = S.potWinners[0] ?? null;
   }
 
@@ -954,7 +971,7 @@ export function createTableModule(ctx){
     S.potBreakdown = winnerSeat ? [{ amount: pot, eligibleSeats: [winnerSeat] }] : [];
     S.potWinners = winnerSeat ? [winnerSeat] : [];
     S.potWinnerGroups = winnerSeat ? [[winnerSeat]] : [];
-    S.potSelectIndex = 0;
+    S.potSelectIndex = -1;
     S.winnerSeat = winnerSeat;
     S.pendingRefundsBySeat = {};
     S.refundsApplied = true;
@@ -1148,7 +1165,7 @@ export function createTableModule(ctx){
       winnerSeat: S.winnerSeat,
       potWinners: JSON.parse(JSON.stringify(S.potWinners || [])),
       potWinnerGroups: JSON.parse(JSON.stringify(S.potWinnerGroups || [])),
-      potSelectIndex: Number(S.potSelectIndex || 0),
+      potSelectIndex: Number.isFinite(Number(S.potSelectIndex)) ? Number(S.potSelectIndex) : -1,
       potTapModeBySeat: JSON.parse(JSON.stringify(S.potTapModeBySeat || {})),
       potBreakdown: JSON.parse(JSON.stringify(S.potBreakdown || [])),
       pendingRefundsBySeat: JSON.parse(JSON.stringify(S.pendingRefundsBySeat || {})),
@@ -1183,7 +1200,7 @@ export function createTableModule(ctx){
     S.winnerSeat = snap.winnerSeat;
     S.potWinners = snap.potWinners || [];
     S.potWinnerGroups = snap.potWinnerGroups || [];
-    S.potSelectIndex = Number(snap.potSelectIndex || 0);
+    S.potSelectIndex = Number.isFinite(Number(snap?.potSelectIndex)) ? Number(snap.potSelectIndex) : -1;
     S.potTapModeBySeat = snap.potTapModeBySeat || {};
     S.potBreakdown = snap.potBreakdown || [];
     S.pendingRefundsBySeat = snap.pendingRefundsBySeat || {};
@@ -1592,7 +1609,7 @@ export function createTableModule(ctx){
     S.potBreakdown = [];
     S.potWinners = [];
     S.potWinnerGroups = [];
-    S.potSelectIndex = 0;
+    S.potSelectIndex = -1;
     S.potTapModeBySeat = {};
 
     updateUI();
@@ -1646,6 +1663,84 @@ export function createTableModule(ctx){
     S.stakeEditMode = true;
     S.stakeEditSeat = null;
     S.stakeEditHistory = [];
+    S.stakeEditTapStateBySeat = {};
+
+    Sound.tick();
+    updateUI();
+    return true;
+  }
+
+  function getStakeEditSmallBlindUnit(){
+    const uid = String(S.structureUid || "");
+    const rows = S.structureRowsByUid?.[uid] || [];
+    const curIdx = Number(S.structureIndexByUid?.[uid] || 0);
+    const safeIdx = Math.max(0, Math.min(curIdx, Math.max(0, rows.length - 1)));
+    const curRow = rows[safeIdx] || null;
+
+    let sb = toPosInt(curRow?.small_blind, toPosInt(S.SB, 1));
+    if(curRow?.is_break){
+      let nextSb = 0;
+      for(let i=safeIdx + 1; i<rows.length; i++){
+        const r = rows[i];
+        if(!r || r.is_break) continue;
+        nextSb = toPosInt(r.small_blind, 0);
+        if(nextSb > 0) break;
+      }
+      if(nextSb > 0) sb = nextSb;
+    }
+
+    const fixedUnits = [500, 1000, 5000, 10000, 50000, 100000];
+    let unit = 500;
+    for(const v of fixedUnits){
+      if(v <= sb) unit = v;
+      else break;
+    }
+    return Math.max(500, unit);
+  }
+
+  function applyStakeEditSeatTap(seatNum, { forceZero = false } = {}){
+    if(!S.stakeEditMode) return false;
+
+    const seat = Number(seatNum || 0);
+    if(!(seat >= 1 && seat <= S.SEAT_COUNT)){
+      Sound.error();
+      return false;
+    }
+
+    const uid = S.seatState?.[seat]?.player_uid;
+    if(!uid){
+      Sound.error();
+      return false;
+    }
+
+    S.stakeEditSeat = seat;
+    const cur = Math.max(0, Math.trunc(Number(S.stackByUid[uid] ?? 0)));
+    const unit = getStakeEditSmallBlindUnit();
+
+    if(!S.stakeEditTapStateBySeat || typeof S.stakeEditTapStateBySeat !== "object"){
+      S.stakeEditTapStateBySeat = {};
+    }
+    const seatKey = String(seat);
+    const seatTapState = S.stakeEditTapStateBySeat[seatKey] || { aligned: false };
+
+    let next = cur;
+    if(forceZero){
+      next = 0;
+      seatTapState.aligned = true;
+    }else if(!seatTapState.aligned){
+      const floored = Math.floor(cur / unit) * unit;
+      next = (cur > 0 && cur === floored) ? Math.max(0, cur - unit) : floored;
+      seatTapState.aligned = true;
+    }else{
+      next = Math.max(0, cur - unit);
+    }
+    S.stakeEditTapStateBySeat[seatKey] = seatTapState;
+
+    if(next !== cur){
+      if(!Array.isArray(S.stakeEditHistory)) S.stakeEditHistory = [];
+      S.stakeEditHistory.push({ uid, prev: cur, seat });
+      S.stackByUid[uid] = next;
+    }
 
     Sound.tick();
     updateUI();
@@ -1741,6 +1836,7 @@ export function createTableModule(ctx){
 
     S.stakeEditMode = false;
     S.stakeEditSeat = null;
+    S.stakeEditTapStateBySeat = {};
     S.stakeEditLockOpen = false;
     S.stakeEditHistory = [];
 
@@ -1785,7 +1881,7 @@ export function createTableModule(ctx){
     S.potBreakdown = [];
     S.potWinners = [];
     S.potWinnerGroups = [];
-    S.potSelectIndex = 0;
+    S.potSelectIndex = -1;
     S.potTapModeBySeat = {};
     S.pendingRefundsBySeat = {};
     S.refundsApplied = false;
@@ -2215,6 +2311,31 @@ export function createTableModule(ctx){
     });
 
     bindSliderOnce();
+
+    potCenter?.addEventListener("click", (e) => {
+      if(!ctx.requireDealer()) return;
+      if(!(S.handActive && S.handStreet === "Showdown")) return;
+
+      ensureShowdownPots();
+      const potLen = Number(S.potBreakdown?.length || 0);
+      if(!potLen){
+        Sound.error();
+        return;
+      }
+
+      const potRow = e.target?.closest?.(".pot-line[data-pot-index]");
+      if(!potRow) return;
+
+      const target = Number(potRow.dataset.potIndex || 0);
+      if(!(target >= 0 && target < potLen)){
+        Sound.error();
+        return;
+      }
+
+      S.potSelectIndex = target;
+      Sound.tick();
+      updateUI();
+    });
   }
 
   // ===== Slider to New Hand =====
@@ -2346,10 +2467,17 @@ export function createTableModule(ctx){
       // Hold: assign/reject QR
       seat.addEventListener('pointerdown', () => {
         if (!ctx.requireDealer()) return;
-        if (S.stakeEditMode) return;
 
         S.didHold = false;
         clearTimeout(S.holdTimer);
+
+        if (S.stakeEditMode) {
+          S.holdTimer = setTimeout(() => {
+            S.didHold = true;
+            applyStakeEditSeatTap(i, { forceZero: true });
+          }, S.HOLD_TIME);
+          return;
+        }
 
         S.holdTimer = setTimeout(() => {
           S.didHold = true;
@@ -2374,11 +2502,13 @@ export function createTableModule(ctx){
         if(!ctx.requireDealer()) return;
         if(!S.seatState[i].player_uid) return;
         if(S.stakeEditMode){
-          const uid = S.seatState?.[i]?.player_uid;
-          S.stakeEditSeat = i;
-          if(uid) S.stackByUid[uid] = 0;
-          Sound.tick();
-          updateUI();
+          if(Number(S.stakeEditSeat || 0) !== Number(i)){
+            S.stakeEditSeat = i;
+            Sound.tick();
+            updateUI();
+            return;
+          }
+          applyStakeEditSeatTap(i);
           return;
         }
 
@@ -2394,44 +2524,6 @@ export function createTableModule(ctx){
           return;
         }
 
-        if(S.potBreakdown.length === 1){
-          const eligible = S.potBreakdown[0]?.eligibleSeats || [];
-          let canPick = eligible.includes(i);
-          if(!canPick){
-            const alive = getActiveInHandSeats();
-            const isHeadsUpSinglePot = alive.length === 2;
-            if(isHeadsUpSinglePot && alive.includes(i)){
-              canPick = true;
-            }
-          }
-          if(!canPick){
-            Sound.error();
-            return;
-          }
-
-          if(!Array.isArray(S.potWinnerGroups)) S.potWinnerGroups = [];
-          if(!Array.isArray(S.potWinnerGroups[0])) S.potWinnerGroups[0] = [];
-          const group = S.potWinnerGroups[0];
-          const idx = group.indexOf(i);
-          if(idx >= 0){
-            group.splice(idx, 1);
-            S.potWinners[0] = Number(group[0] || 0);
-            S.winnerSeat = S.potWinners[0] || null;
-            S.potSelectIndex = 0;
-            Sound.tick();
-            updateUI();
-            return;
-          }
-
-          group.push(i);
-          S.potWinners[0] = Number(group[0] || 0);
-          S.winnerSeat = S.potWinners[0] || null;
-          S.potSelectIndex = 0;
-          Sound.success();
-          updateUI();
-          return;
-        }
-
         if(!Array.isArray(S.potWinnerGroups)) S.potWinnerGroups = [];
         const potLen = Number(S.potBreakdown?.length || 0);
         if(!potLen){
@@ -2439,110 +2531,37 @@ export function createTableModule(ctx){
           return;
         }
 
-        const maxPotIdx = Math.max(0, potLen - 1);
-        if(!S.potTapModeBySeat || typeof S.potTapModeBySeat !== "object") S.potTapModeBySeat = {};
-        const selectedPots = [];
-        for(let p=0; p<potLen; p++){
-          const g = Array.isArray(S.potWinnerGroups[p]) ? S.potWinnerGroups[p] : [];
-          if(g.includes(i)) selectedPots.push(p);
+        const potIndex = Number(S.potSelectIndex);
+        if(!(potIndex >= 0 && potIndex < potLen)){
+          Sound.error();
+          return;
         }
-        const eligiblePots = [];
-        for(let p=0; p<potLen; p++){
-          const elig = S.potBreakdown[p]?.eligibleSeats || [];
-          if(elig.includes(i)) eligiblePots.push(p);
+        const eligible = Array.isArray(S.potBreakdown?.[potIndex]?.eligibleSeats) ? S.potBreakdown[potIndex].eligibleSeats : [];
+        let canPick = eligible.includes(i);
+        if(!canPick && potLen === 1){
+          const alive = getActiveInHandSeats();
+          const isHeadsUpSinglePot = alive.length === 2;
+          if(isHeadsUpSinglePot && alive.includes(i)){
+            canPick = true;
+          }
         }
-        const seatKey = String(i);
-        let mode = String(S.potTapModeBySeat[seatKey] || "add");
-        if(!selectedPots.length) mode = "add";
+        if(!canPick){
+          Sound.error();
+          return;
+        }
 
-        if(selectedPots.length){
-          const lastPickedPot = selectedPots[selectedPots.length - 1];
-          const nextEligibleSidePot = (() => {
-            for(let p=lastPickedPot + 1; p<potLen; p++){
-              const elig = S.potBreakdown[p]?.eligibleSeats || [];
-              const g = Array.isArray(S.potWinnerGroups[p]) ? S.potWinnerGroups[p] : [];
-              if(elig.includes(i) && !g.includes(i)) return p;
-            }
-            return -1;
-          })();
-
-          const allEligiblePicked = eligiblePots.length > 0 && eligiblePots.every((p) => selectedPots.includes(p));
-          if(allEligiblePicked){
-            for(let p=0; p<potLen; p++){
-              const g = Array.isArray(S.potWinnerGroups[p]) ? S.potWinnerGroups[p] : [];
-              const idx = g.indexOf(i);
-              if(idx >= 0) g.splice(idx, 1);
-            }
-            S.potSelectIndex = 0;
-            S.potTapModeBySeat[seatKey] = "add";
-            syncPotWinnersFromGroups();
-            Sound.tick();
-            updateUI();
-            return;
-          }
-
-          if(mode !== "remove" && nextEligibleSidePot >= 0 && !allEligiblePicked){
-            if(!Array.isArray(S.potWinnerGroups[nextEligibleSidePot])) S.potWinnerGroups[nextEligibleSidePot] = [];
-            S.potWinnerGroups[nextEligibleSidePot].push(i);
-            S.potSelectIndex = Math.min(nextEligibleSidePot + 1, maxPotIdx);
-            S.potTapModeBySeat[seatKey] = "add";
-            syncPotWinnersFromGroups();
-            Sound.success();
-            updateUI();
-            return;
-          }
-
-          const g = Array.isArray(S.potWinnerGroups[lastPickedPot]) ? S.potWinnerGroups[lastPickedPot] : [];
-          const idx = g.indexOf(i);
-          if(idx >= 0) g.splice(idx, 1);
-          S.potSelectIndex = Math.min(lastPickedPot, maxPotIdx);
-          const stillSelected = S.potWinnerGroups.some((grp) => Array.isArray(grp) && grp.includes(i));
-          S.potTapModeBySeat[seatKey] = stillSelected ? "remove" : "add";
+        if(!Array.isArray(S.potWinnerGroups[potIndex])) S.potWinnerGroups[potIndex] = [];
+        const group = S.potWinnerGroups[potIndex];
+        const idx = group.indexOf(i);
+        if(idx >= 0){
+          group.splice(idx, 1);
           syncPotWinnersFromGroups();
           Sound.tick();
           updateUI();
           return;
         }
 
-        const firstIncomplete = getFirstIncompletePotIndex();
-        let potIndex = -1;
-        for(let p=0; p<potLen; p++){
-          const eligible = S.potBreakdown[p]?.eligibleSeats || [];
-          if(!eligible.includes(i)) continue;
-          const group = Array.isArray(S.potWinnerGroups[p]) ? S.potWinnerGroups[p] : [];
-          if(group.includes(i)) continue;
-          if(group.length > 0){
-            // Prefer split on an already-started pot (main/side) when seat is eligible.
-            potIndex = p;
-            break;
-          }
-          if(p === firstIncomplete && potIndex < 0){
-            potIndex = p;
-          }
-        }
-        if(potIndex < 0){
-          for(let p=firstIncomplete; p<potLen; p++){
-            const eligible = S.potBreakdown[p]?.eligibleSeats || [];
-            const group = Array.isArray(S.potWinnerGroups[p]) ? S.potWinnerGroups[p] : [];
-            if(eligible.includes(i) && !group.includes(i)){
-              potIndex = p;
-              break;
-            }
-          }
-        }
-        if(potIndex < 0){
-          Sound.error();
-          return;
-        }
-
-        if(!Array.isArray(S.potWinnerGroups[potIndex])) S.potWinnerGroups[potIndex] = [];
-        S.potWinnerGroups[potIndex].push(i);
-        S.potSelectIndex = Math.min(potIndex + 1, maxPotIdx);
-        const pickedNow = eligiblePots.length > 0 && eligiblePots.every((p) => {
-          const grp = Array.isArray(S.potWinnerGroups[p]) ? S.potWinnerGroups[p] : [];
-          return grp.includes(i);
-        });
-        S.potTapModeBySeat[seatKey] = pickedNow ? "remove" : "add";
+        group.push(i);
         syncPotWinnersFromGroups();
         Sound.success();
         updateUI();
