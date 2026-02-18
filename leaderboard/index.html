@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tournament Leaderboard</title>
+  <style>
+    :root {
+      --bg: #070a12;
+      --text: #eaf0ff;
+      --muted: rgba(234, 240, 255, 0.65);
+      --card-a: rgba(255, 255, 255, 0.07);
+      --card-b: rgba(255, 255, 255, 0.04);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --line: rgba(255, 255, 255, 0.1);
+      --brand-a: #7c3aed;
+      --brand-b: #22d3ee;
+      --metal-a: rgba(248, 250, 252, 0.26);
+      --metal-b: rgba(148, 163, 184, 0.2);
+      --metal-c: rgba(203, 213, 225, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(124, 58, 237, 0.35), transparent 55%),
+        radial-gradient(900px 600px at 90% 0%, rgba(34, 211, 238, 0.22), transparent 55%),
+        radial-gradient(900px 600px at 70% 120%, rgba(96, 165, 250, 0.18), transparent 60%),
+      var(--bg);
+      display: grid;
+      place-items: center;
+      padding: 6px;
+    }
+
+    .board {
+      width: min(99.5vw, calc(99.5vh * 16 / 9));
+      height: min(99.5vh, calc(99.5vw * 9 / 16));
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--card-border);
+      background: linear-gradient(180deg, var(--card-a), var(--card-b));
+      backdrop-filter: blur(24px);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow:
+        0 25px 90px rgba(0, 0, 0, 0.6),
+        0 0 24px rgba(124, 58, 237, 0.2);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      background: linear-gradient(90deg, rgba(124, 58, 237, 0.2), rgba(34, 211, 238, 0.12));
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: clamp(13px, 1.5vw, 18px);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow: 0 0 14px rgba(124, 58, 237, 0.35);
+    }
+
+    .header span {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-controls label {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .header-controls select {
+      height: 26px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(12, 18, 34, 0.92);
+      color: var(--text);
+      font-size: 11px;
+      padding: 0 8px;
+      min-width: 110px;
+    }
+
+    .tables {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 6px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(8, 12, 25, 0.45);
+      min-height: 0;
+    }
+
+    .chipleaders-title {
+      margin: 0;
+      padding: 12px 16px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(124, 58, 237, 0.16), rgba(34, 211, 238, 0.1));
+    }
+
+    .top5-wrap {
+      border-bottom: 1px solid var(--line);
+      background: rgba(124, 58, 237, 0.06);
+    }
+
+    .table-scroll {
+      overflow: hidden;
+      height: 100%;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 1px;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      padding: 6px 9px;
+      text-align: left;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    thead th {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 10px;
+      border-bottom: 1px solid var(--line);
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+
+    tbody tr {
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+
+    tbody tr:hover {
+      background: rgba(34, 211, 238, 0.08);
+      transform: translateX(2px);
+    }
+
+    tbody td {
+      background: rgba(16, 25, 44, 0.82);
+      border-top: 1px solid rgba(196, 224, 255, 0.11);
+      border-bottom: 1px solid rgba(95, 121, 154, 0.22);
+    }
+
+    tbody td:first-child {
+      border-left: 1px solid rgba(196, 224, 255, 0.1);
+      border-radius: 6px 0 0 6px;
+    }
+
+    tbody td:last-child {
+      border-right: 1px solid rgba(196, 224, 255, 0.1);
+      border-radius: 0 6px 6px 0;
+    }
+
+    .rank {
+      width: 48px;
+      font-weight: 700;
+      color: var(--brand-b);
+    }
+
+    .name {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .stake {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      color: #c4b5fd;
+    }
+
+    .bb {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: #93c5fd;
+      width: 64px;
+    }
+
+    .move {
+      width: 88px;
+      text-align: center;
+    }
+
+    .move-stack {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      min-height: 10px;
+    }
+
+    .trend {
+      display: inline-block;
+      width: 0;
+      height: 0;
+      vertical-align: middle;
+    }
+
+    .trend.up {
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-bottom: 5px solid #22d3ee;
+      filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.45));
+    }
+
+    .trend.down {
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-top: 5px solid #f87171;
+      filter: drop-shadow(0 0 4px rgba(248, 113, 113, 0.45));
+    }
+
+    .trend.flat {
+      width: 6px;
+      height: 2px;
+      border: 0;
+      background: rgba(191, 208, 238, 0.85);
+      border-radius: 2px;
+      filter: drop-shadow(0 0 3px rgba(191, 208, 238, 0.35));
+    }
+
+    tbody tr.moved-up td {
+      animation: pulseUp 3s ease;
+    }
+
+    tbody tr.moved-down td {
+      animation: pulseDown 3s ease;
+    }
+
+    tbody tr.actor-jump-up td {
+      animation: actorJumpUp 3s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    tbody tr.actor-jump-down td {
+      animation: actorJumpDown 3s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    tbody tr.shift-down td {
+      animation: shiftDownBrick 3s ease;
+    }
+
+    tbody tr.shift-up td {
+      animation: shiftUpBrick 3s ease;
+    }
+
+    @keyframes pulseUp {
+      0% { box-shadow: inset 0 0 0 rgba(52, 211, 153, 0); }
+      35% { box-shadow: inset 0 0 0 999px rgba(52, 211, 153, 0.14); }
+      100% { box-shadow: inset 0 0 0 rgba(52, 211, 153, 0); }
+    }
+
+    @keyframes pulseDown {
+      0% { box-shadow: inset 0 0 0 rgba(248, 113, 113, 0); }
+      35% { box-shadow: inset 0 0 0 999px rgba(248, 113, 113, 0.13); }
+      100% { box-shadow: inset 0 0 0 rgba(248, 113, 113, 0); }
+    }
+
+    @keyframes actorJumpUp {
+      0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+      35% { opacity: 1; transform: translateY(-3px) scale(1.02); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes actorJumpDown {
+      0% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+      35% { opacity: 1; transform: translateY(3px) scale(1.01); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes shiftDownBrick {
+      0% { transform: translateY(-5px); opacity: 0.92; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes shiftUpBrick {
+      0% { transform: translateY(5px); opacity: 0.92; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    @media (max-width: 640px) {
+      th,
+      td {
+        padding: 4px 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="board">
+    <div class="header">
+      <h1>Leaderboard</h1>
+      <div class="header-controls">
+        <label for="tournamentSelect">Tournament ID</label>
+        <select id="tournamentSelect"></select>
+        <span id="tournamentBadge"></span>
+      </div>
+    </div>
+    <div class="tables">
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th style="text-align:right;">Stack</th>
+                <th style="text-align:right;">Re-Buy</th>
+                <th class="move">Move</th>
+              </tr>
+            </thead>
+            <tbody id="table1"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th style="text-align:right;">Stack</th>
+                <th style="text-align:right;">Re-Buy</th>
+                <th class="move">Move</th>
+              </tr>
+            </thead>
+            <tbody id="table2"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th style="text-align:right;">Stack</th>
+                <th style="text-align:right;">Re-Buy</th>
+                <th class="move">Move</th>
+              </tr>
+            </thead>
+            <tbody id="table3"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const table1 = document.getElementById("table1");
+    const table2 = document.getElementById("table2");
+    const table3 = document.getElementById("table3");
+    const tournamentSelect = document.getElementById("tournamentSelect");
+    const tournamentBadge = document.getElementById("tournamentBadge");
+    const SUPABASE_URL = "https://jttwlfsfvaiivlyiyaxz.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0dHdsZnNmdmFpaXZseWl5YXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5ODcyNTgsImV4cCI6MjA4NjU2MzI1OH0.1c6iLV7Yznzs_3gQ_dV8Br02F9jJdHWhL-Hl2iASRuQ";
+    const FALLBACK_REFRESH_MS = 5000;
+    const BATCH_SIZE = 25;
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let players = [];
+    let currentTournamentId = "";
+    let leaderboardChannel = null;
+    let fallbackRefreshTimer = null;
+    let lastActorIds = new Set();
+    const previousRankMapByTournament = new Map();
+
+    function formatStake(value) {
+      return Math.round(value).toLocaleString("en-US");
+    }
+
+    function normalizeBuys(row) {
+      if (typeof row.buys === "number" && Number.isFinite(row.buys)) {
+        return row.buys;
+      }
+      return 0;
+    }
+
+    function moveClassForDelta(delta) {
+      if (delta > 0) {
+        return "up";
+      }
+      if (delta < 0) {
+        return "down";
+      }
+      return "flat";
+    }
+
+    function moveLabelForDelta(delta) {
+      if (delta > 0) {
+        return `Up ${delta} rank`;
+      }
+      if (delta < 0) {
+        return `Down ${Math.abs(delta)} rank`;
+      }
+      return "No change";
+    }
+
+    function moveIconCountForDelta(delta) {
+      if (delta === 0) {
+        return 1;
+      }
+      return Math.min(10, Math.max(1, Math.ceil(Math.abs(delta) / 10)));
+    }
+
+    function rowHtml(player) {
+      const trend = moveClassForDelta(player.move);
+      const trendLabel = moveLabelForDelta(player.move);
+      const iconCount = moveIconCountForDelta(player.move);
+      const moveIcons = trend === "flat"
+        ? `<span class="trend flat" aria-label="${trendLabel}" title="${trendLabel}"></span>`
+        : Array.from(
+          { length: iconCount },
+          () => `<span class="trend ${trend}" aria-label="${trendLabel}" title="${trendLabel}"></span>`
+        ).join("");
+      const rowClasses = [];
+      if (lastActorIds.has(player.id) && player.move > 0) {
+        rowClasses.push("actor-jump-up");
+      } else if (lastActorIds.has(player.id) && player.move < 0) {
+        rowClasses.push("actor-jump-down");
+      } else if (player.move === -1) {
+        rowClasses.push("shift-down");
+      } else if (player.move === 1) {
+        rowClasses.push("shift-up");
+      } else if (player.move > 0) {
+        rowClasses.push("moved-up");
+      } else if (player.move < 0) {
+        rowClasses.push("moved-down");
+      }
+      return `
+        <tr class="${rowClasses.join(" ")}">
+          <td class="rank">#${player.rank}</td>
+          <td class="name">${player.player_name ?? player.player_uid}</td>
+          <td class="stake">${formatStake(player.stake)}</td>
+          <td class="bb">${player.buys}</td>
+          <td class="move"><span class="move-stack">${moveIcons}</span></td>
+        </tr>
+      `;
+    }
+
+    function setTournamentBadge(text, isError = false) {
+      tournamentBadge.textContent = text;
+      tournamentBadge.style.color = isError ? "#fca5a5" : "var(--muted)";
+    }
+
+    function normalizeStake(row) {
+      if (typeof row.player_chips === "number" && Number.isFinite(row.player_chips)) {
+        return row.player_chips;
+      }
+      return 0;
+    }
+
+    function getRowIdentity(row, tournamentId, fallbackRank) {
+      return String(row.id ?? row.player_uid ?? `${tournamentId}-${fallbackRank}`);
+    }
+
+    function sortLeaderboardRows(rows) {
+      const hasRank = rows.some((row) => typeof row.rank === "number" && Number.isFinite(row.rank));
+      if (hasRank) {
+        return rows.slice().sort((a, b) => {
+          const rankA = Number.isFinite(a.rank) ? a.rank : Number.MAX_SAFE_INTEGER;
+          const rankB = Number.isFinite(b.rank) ? b.rank : Number.MAX_SAFE_INTEGER;
+          if (rankA !== rankB) {
+            return rankA - rankB;
+          }
+          return normalizeStake(b) - normalizeStake(a);
+        });
+      }
+      return rows.slice().sort((a, b) => normalizeStake(b) - normalizeStake(a));
+    }
+
+    function mapRowsToPlayers(rows, tournamentId, playerNameMap = new Map()) {
+      const sortedRows = sortLeaderboardRows(rows);
+      const previousMap = previousRankMapByTournament.get(tournamentId) ?? new Map();
+      const nextMap = new Map();
+
+      const mappedPlayers = sortedRows.map((row, idx) => {
+        const newRank = idx + 1;
+        const id = getRowIdentity(row, tournamentId, newRank);
+        const oldRank = previousMap.get(id) ?? newRank;
+        const move = oldRank - newRank;
+
+        nextMap.set(id, newRank);
+        const playerUid = String(row.player_uid ?? id);
+        return {
+          id,
+          tournament_id: String(row.tournament_id ?? tournamentId),
+          player_uid: playerUid,
+          player_name: playerNameMap.get(playerUid) ?? playerUid,
+          rank: newRank,
+          stake: Math.max(0, normalizeStake(row)),
+          buys: Math.max(0, normalizeBuys(row)),
+          move
+        };
+      });
+
+      previousRankMapByTournament.set(tournamentId, nextMap);
+      return mappedPlayers;
+    }
+
+    async function loadPlayerNameMapByUid(playerUids) {
+      const uniqueUids = [...new Set((playerUids ?? []).map((uid) => String(uid)).filter(Boolean))];
+      const playerNameMap = new Map();
+      if (uniqueUids.length === 0) {
+        return playerNameMap;
+      }
+
+      const chunkSize = 500;
+      for (let i = 0; i < uniqueUids.length; i += chunkSize) {
+        const chunk = uniqueUids.slice(i, i + chunkSize);
+        const { data, error } = await supabaseClient
+          .from("players")
+          .select("player_uid, player_name")
+          .in("player_uid", chunk)
+          .limit(5000);
+
+        if (error) {
+          throw error;
+        }
+
+        (data ?? []).forEach((row) => {
+          const uid = String(row.player_uid ?? "");
+          if (!uid) {
+            return;
+          }
+          const name = String(row.player_name ?? uid).trim();
+          playerNameMap.set(uid, name || uid);
+        });
+      }
+
+      return playerNameMap;
+    }
+
+    async function loadTournamentOptions() {
+      const { data, error } = await supabaseClient
+        .from("leaderboard")
+        .select("tournament_id")
+        .not("tournament_id", "is", null)
+        .limit(5000);
+
+      if (error) {
+        throw error;
+      }
+
+      const uniqueIds = [...new Set((data ?? []).map((row) => String(row.tournament_id)))].sort((a, b) => {
+        const asNum = Number(a);
+        const bsNum = Number(b);
+        if (Number.isFinite(asNum) && Number.isFinite(bsNum)) {
+          return asNum - bsNum;
+        }
+        return a.localeCompare(b);
+      });
+
+      tournamentSelect.innerHTML = uniqueIds.map(
+        (id) => `<option value="${id}">${id}</option>`
+      ).join("");
+
+      if (uniqueIds.length === 0) {
+        currentTournamentId = "";
+        setTournamentBadge("Khong co tournament_id trong leaderboard", true);
+        players = [];
+        renderAllTables();
+        return;
+      }
+
+      currentTournamentId = uniqueIds[0];
+      tournamentSelect.value = currentTournamentId;
+      setTournamentBadge(`Connected | Tournament: ${currentTournamentId}`);
+    }
+
+    async function loadLeaderboardByTournament(tournamentId) {
+      if (!tournamentId) {
+        players = [];
+        renderAllTables();
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from("leaderboard")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .limit(5000);
+
+      if (error) {
+        throw error;
+      }
+
+      const leaderboardRows = data ?? [];
+      const playerUidList = leaderboardRows.map((row) => String(row.player_uid ?? "")).filter(Boolean);
+      const playerNameMap = await loadPlayerNameMapByUid(playerUidList);
+      players = mapRowsToPlayers(leaderboardRows, tournamentId, playerNameMap);
+      lastActorIds = new Set(players.filter((player) => player.move !== 0).map((player) => player.id));
+      renderAllTables();
+      setTournamentBadge(`Connected | Tournament: ${tournamentId} | Rows: ${players.length}`);
+    }
+
+    function renderAllTables() {
+      table1.innerHTML = players.slice(0, BATCH_SIZE).map((player) => rowHtml(player)).join("");
+      table2.innerHTML = players.slice(BATCH_SIZE, BATCH_SIZE * 2).map((player) => rowHtml(player)).join("");
+      table3.innerHTML = players.slice(BATCH_SIZE * 2, BATCH_SIZE * 3).map((player) => rowHtml(player)).join("");
+    }
+
+    async function refreshCurrentTournament() {
+      try {
+        await loadLeaderboardByTournament(currentTournamentId);
+      } catch (error) {
+        setTournamentBadge(`Load loi: ${error.message ?? error}`, true);
+      }
+    }
+
+    async function unsubscribeLeaderboardRealtime() {
+      if (!leaderboardChannel) {
+        return;
+      }
+      await supabaseClient.removeChannel(leaderboardChannel);
+      leaderboardChannel = null;
+    }
+
+    async function subscribeLeaderboardRealtime(tournamentId) {
+      await unsubscribeLeaderboardRealtime();
+      if (!tournamentId) {
+        return;
+      }
+
+      leaderboardChannel = supabaseClient
+        .channel(`leaderboard-live-${tournamentId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "leaderboard"
+          },
+          async (payload) => {
+            const changedTournamentId = String(
+              payload?.new?.tournament_id ?? payload?.old?.tournament_id ?? ""
+            );
+            if (changedTournamentId !== String(currentTournamentId)) {
+              return;
+            }
+            await refreshCurrentTournament();
+          }
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            setTournamentBadge(`Connected realtime | Tournament: ${tournamentId} | ENTRIES: ${players.length}`);
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            setTournamentBadge(`Realtime loi, dang dung polling | Tournament: ${tournamentId}`, true);
+          }
+        });
+    }
+
+    function startFallbackPolling() {
+      if (fallbackRefreshTimer) {
+        clearInterval(fallbackRefreshTimer);
+      }
+      fallbackRefreshTimer = setInterval(() => {
+        refreshCurrentTournament();
+      }, FALLBACK_REFRESH_MS);
+    }
+
+    async function initSupabaseLeaderboard() {
+      setTournamentBadge("Dang ket noi Supabase...");
+      try {
+        await loadTournamentOptions();
+        if (!currentTournamentId) {
+          return;
+        }
+
+        tournamentSelect.addEventListener("change", async (event) => {
+          currentTournamentId = event.target.value;
+          await refreshCurrentTournament();
+          await subscribeLeaderboardRealtime(currentTournamentId);
+        });
+
+        await refreshCurrentTournament();
+        await subscribeLeaderboardRealtime(currentTournamentId);
+        startFallbackPolling();
+      } catch (error) {
+        setTournamentBadge(`Ket noi Supabase loi: ${error.message ?? error}`, true);
+        players = [];
+        renderAllTables();
+      }
+    }
+
+    initSupabaseLeaderboard();
+  </script>
+</body>
+</html>

@@ -467,7 +467,7 @@ window.tourPress = function tourPress(n) {
   if (!tourSelect.value) {
     Sound.error();
     tourErrEl.style.display = "block";
-    tourErrEl.textContent = "âŒ Select tournament first";
+    tourErrEl.textContent = "Select tournament first";
     return;
   }
   tourErrEl.style.display = "none";
@@ -497,7 +497,7 @@ async function loadTournamentsForModal() {
       return;
     }
     tourSelect.innerHTML =
-      `<option value="">â€” Select tournament â€”</option>` +
+      `<option value=""> -Select Tournament- </option>` +
       rows.map((r) => `<option value="${String(r.tournament_id)}">${String(r.tournament_id)}</option>`).join("");
   } catch (e) {
     console.error("loadTournaments exception:", e);

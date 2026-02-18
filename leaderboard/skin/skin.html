@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Rivebase — Template</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* =========================
+       RIVEBASE SKIN (TEMPLATE)
+       - Background: nebula gradients
+       - Card: glass
+       - Inputs: dark glass
+       - Button: white solid
+       ========================= */
+
+    :root{
+      --bg:#070A12;
+      --text:#EAF0FF;
+
+      --muted:rgba(234,240,255,.65);
+      --muted2:#64748b;
+
+      --cardA:rgba(255,255,255,.07);
+      --cardB:rgba(255,255,255,.04);
+      --cardBorder:rgba(255,255,255,.12);
+      --shadow:0 25px 90px rgba(0,0,0,.6);
+
+      --fieldBg:rgba(15,23,42,0.6);
+      --fieldBorder:rgba(255,255,255,0.10);
+
+      --brandA:#7C3AED;
+      --brandB:#22D3EE;
+    }
+
+    /* RESET */
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html{ height:100%; overflow-x:hidden; }
+    body{
+      min-height:100dvh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding-top:clamp(90px,14vh,180px);
+      color:var(--text);
+
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 55%),
+        radial-gradient(900px 600px at 90% 0%, rgba(34,211,238,.22), transparent 55%),
+        radial-gradient(900px 600px at 70% 120%, rgba(96,165,250,.18), transparent 60%),
+        var(--bg);
+    }
+
+    /* ===== GLASS CARD ===== */
+    .rb-card{
+      width:min(420px,92%);
+      padding:44px;
+      border-radius:26px;
+
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      backdrop-filter: blur(24px);
+
+      border:1px solid var(--cardBorder);
+      box-shadow:var(--shadow);
+    }
+
+    @media(max-width:420px){
+      .rb-card{ padding:30px; }
+    }
+
+    /* ===== BRAND / LOGO ===== */
+    .rb-brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:28px;
+    }
+
+    /* Icon tile */
+    .rb-logo-icon{
+      width:54px;
+      height:54px;
+      border-radius:16px;
+
+      background:
+        radial-gradient(12px 12px at 30% 30%, rgba(255,255,255,.6), transparent 60%),
+        linear-gradient(135deg, var(--brandA), var(--brandB));
+
+      box-shadow:0 12px 40px rgba(124,58,237,.35);
+      border:1px solid rgba(255,255,255,.25);
+
+      display:grid;
+      place-items:center;
+      position:relative;
+      flex:0 0 auto;
+    }
+
+    /* Optional: Monogram (R/B) inside icon */
+    .rb-monogram{
+      font-weight:800;
+      letter-spacing:.5px;
+      color:rgba(7,10,18,.88);
+      background:rgba(255,255,255,.82);
+      padding:6px 8px;
+      border-radius:10px;
+      box-shadow:0 10px 25px rgba(0,0,0,.25);
+      font-size:13px;
+      line-height:1;
+      user-select:none;
+    }
+
+    .rb-brand-text{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+    }
+
+    .rb-brand-name{
+      font-size:22px;
+      font-weight:700;
+      letter-spacing:.3px;
+      text-transform:lowercase;
+    }
+
+    .rb-tagline{
+      margin-top:4px;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    /* ===== SUBTITLE ===== */
+    .rb-subtitle{
+      text-align:center;
+      color:var(--muted);
+      font-size:14px;
+      margin-bottom:30px;
+    }
+
+    /* ===== FORM ===== */
+    .rb-group{ margin-bottom:18px; }
+    .rb-label{
+      display:block;
+      color:#cbd5e1;
+      font-size:13px;
+      margin-bottom:6px;
+    }
+
+    /* UID wrapper */
+    .rb-uid-wrap{
+      display:flex;
+      align-items:center;
+
+      background:var(--fieldBg);
+      border-radius:12px;
+      border:1px solid var(--fieldBorder);
+
+      padding-left:12px;
+    }
+
+    .rb-uid-prefix{
+      color:#c7d2fe;
+      font-weight:600;
+      letter-spacing:1.5px;
+      background:rgba(99,102,241,0.18);
+      padding:4px 8px;
+      border-radius:6px;
+      user-select:none;
+    }
+
+    .rb-uid-dash{ color:var(--muted2); margin:0 6px; user-select:none; }
+
+    input{
+      width:100%;
+      padding:12px 12px;
+      font-size:16px;
+      color:#e5e7eb;
+      background:transparent;
+      border:none;
+      outline:none;
+    }
+    input::placeholder{ color:var(--muted2); }
+
+    .rb-pin{
+      background:var(--fieldBg);
+      border:1px solid var(--fieldBorder);
+      border-radius:12px;
+    }
+
+    /* ===== PRIMARY BUTTON ===== */
+    .rb-btn{
+      width:100%;
+      padding:14px;
+      border-radius:14px;
+      border:none;
+
+      font-weight:700;
+      letter-spacing:.3px;
+
+      cursor:pointer;
+      margin-top:12px;
+
+      background:#ffffff;
+      color:#0A0F1F;
+
+      transition:.2s;
+    }
+    .rb-btn:hover{
+      background:rgba(255,255,255,.92);
+      transform:translateY(-1px);
+    }
+    .rb-btn:disabled{
+      opacity:.6;
+      cursor:not-allowed;
+      transform:none;
+    }
+
+    /* ERROR */
+    .rb-error{
+      margin-top:12px;
+      color:#ff8aa1;
+      font-size:13px;
+      text-align:center;
+      display:none;
+    }
+
+    /* FOOTER */
+    .rb-footer{
+      margin-top:26px;
+      text-align:center;
+      color:var(--muted2);
+      font-size:12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="rb-card">
+
+    <!-- BRAND -->
+    <div class="rb-brand">
+      <div class="rb-logo-icon">
+       
+      </div>
+
+      <div class="rb-brand-text">
+        <div class="rb-brand-name">rivebase</div>
+        <div class="rb-tagline">Secure Owner Access</div>
+      </div>
+    </div>
+
+    <!-- OPTIONAL SUBTITLE -->
+    <div class="rb-subtitle">Template page using Rivebase Skin</div>
+
+    <!-- UID -->
+    <div class="rb-group">
+      <label class="rb-label">Owner UID</label>
+
+      <div class="rb-uid-wrap">
+        <span class="rb-uid-prefix">AD</span>
+        <span class="rb-uid-dash">-</span>
+
+        <input id="ownerUidInput"
+               placeholder="xx"
+               inputmode="numeric"
+               pattern="[0-9]*"
+               autocomplete="off" />
+      </div>
+    </div>
+
+    <!-- PIN -->
+    <div class="rb-group">
+      <label class="rb-label">PIN</label>
+
+      <input id="pinInput"
+             class="rb-pin"
+             type="password"
+             placeholder="••••"
+             inputmode="numeric"
+             maxlength="4" />
+    </div>
+
+    <button id="loginBtn" class="rb-btn" type="button">Login</button>
+    <div id="error" class="rb-error">Invalid UID or PIN</div>
+
+    <div class="rb-footer">© 2026 Rivebase • Internal Operations</div>
+  </div>
+
+  <canvas id="faviconCanvas" width="64" height="64" style="display:none"></canvas>
+
+  <script>
+    /* =========================
+       RIVEBASE LOGO / FAVICON
+       - Builds favicon from same gradient tile
+       - Reusable for all pages
+       ========================= */
+
+    function rbGenerateFavicon(){
+      const canvas = document.getElementById("faviconCanvas");
+      const ctx = canvas.getContext("2d");
+      const size = 64;
+
+      // background
+      ctx.clearRect(0,0,size,size);
+      ctx.fillStyle = "#070A12";
+      ctx.fillRect(0,0,size,size);
+
+      // main gradient
+      const grad = ctx.createLinearGradient(0,0,size,size);
+      grad.addColorStop(0,"#7C3AED");
+      grad.addColorStop(1,"#22D3EE");
+
+      // rounded square
+      ctx.fillStyle = grad;
+      const r = 14;
+      ctx.beginPath();
+      ctx.moveTo(r,0);
+      ctx.lineTo(size-r,0);
+      ctx.quadraticCurveTo(size,0,size,r);
+      ctx.lineTo(size,size-r);
+      ctx.quadraticCurveTo(size,size,size-r,size);
+      ctx.lineTo(r,size);
+      ctx.quadraticCurveTo(0,size,0,size-r);
+      ctx.lineTo(0,r);
+      ctx.quadraticCurveTo(0,0,r,0);
+      ctx.closePath();
+      ctx.fill();
+
+      // highlight glow
+      const glow = ctx.createRadialGradient(20,20,4,20,20,26);
+      glow.addColorStop(0,"rgba(255,255,255,0.65)");
+      glow.addColorStop(1,"rgba(255,255,255,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0,0,size,size);
+
+      // Optional monogram "R" (simple)
+      ctx.fillStyle = "rgba(7,10,18,.85)";
+      ctx.font = "800 28px Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("R", size/2, size/2 + 1);
+
+      const url = canvas.toDataURL("image/png");
+
+      // remove old favicon
+      const old = document.querySelector("link[rel='icon']");
+      if(old) old.remove();
+
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.type = "image/png";
+      link.href = url;
+      document.head.appendChild(link);
+    }
+
+    window.addEventListener("load", rbGenerateFavicon);
+
+    /* =========================
+       OPTIONAL: UX helpers (same as your logic)
+       - auto skip UID->PIN
+       - auto login on 4 digits
+       ========================= */
+
+    const ownerUidInput = document.getElementById("ownerUidInput");
+    const pinInput = document.getElementById("pinInput");
+    const loginBtn = document.getElementById("loginBtn");
+    const errorDiv = document.getElementById("error");
+
+    ownerUidInput.focus();
+
+    ownerUidInput.addEventListener("input", ()=>{
+      ownerUidInput.value = ownerUidInput.value.replace(/\D/g,'').slice(0,2);
+      if(ownerUidInput.value.length === 2) pinInput.focus();
+    });
+
+    pinInput.addEventListener("input", ()=>{
+      pinInput.value = pinInput.value.replace(/\D/g,'').slice(0,4);
+      if(pinInput.value.length === 4) login(); // demo
+    });
+
+    loginBtn.addEventListener("click", login);
+
+    document.addEventListener("keydown",(e)=>{
+      if(e.key==="Enter") login();
+    });
+
+    async function login(){
+      if(loginBtn.disabled) return;
+
+      errorDiv.style.display = "none";
+      const uid = "AD" + ownerUidInput.value.trim();
+      const pin = pinInput.value.trim();
+
+      if(ownerUidInput.value.length !== 2 || pin.length !== 4){
+        errorDiv.innerText = "Enter valid UID and PIN";
+        errorDiv.style.display = "block";
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.innerText = "Logging in...";
+
+      // TODO: replace with Supabase RPC
+      await new Promise(r=>setTimeout(r,300));
+
+      loginBtn.disabled = false;
+      loginBtn.innerText = "Login";
+
+      // Demo error:
+      errorDiv.innerText = "Template only — hook RPC here";
+      errorDiv.style.display = "block";
+      pinInput.value="";
+      pinInput.focus();
+    }
+  </script>
+
+</body>
+</html>
