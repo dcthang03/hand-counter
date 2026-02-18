@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Hand Counter System</title>
+  <link rel="icon" href="data:,">
 
   <link rel="stylesheet" href="./css/style.css">
 </head>
@@ -31,6 +32,11 @@
             <span class="progressBar"><span id="tableProgress" class="progressFill"></span></span>
           </button>
 
+          <button id="tourBtn" class="login-btn red" type="button">
+            <span id="tourBtnText">Tour Login</span>
+            <span class="progressBar"><span id="tourProgress" class="progressFill"></span></span>
+          </button>
+
           <button id="dealerBtn" class="login-btn red" type="button">
             <span id="dealerBtnText">Dealer Login</span>
             <span class="progressBar"><span id="dealerProgress" class="progressFill"></span></span>
@@ -44,6 +50,10 @@
         <div>
           <div class="cpTitle" id="actingTitle"></div>
         </div>
+        <div class="stake-tools">
+          <button class="quickBtn stake-lock-btn" id="stakeLockBtn" type="button" aria-label="Stake lock">🔒</button>
+          <button class="quickBtn stake-update-btn" id="updateStakeBtn" type="button">Edit Stack</button>
+        </div>
         <div class="blind-tools">
           <div class="pill">Blinds <b id="blindLabel">25 / 50(50)</b></div>
           <div class="pill">Level <b id="levelLabel">-</b></div>
@@ -54,8 +64,8 @@
       </div>
 
       <div class="blind-actions">
-        <button class="quickBtn blind-up-btn" id="dealerBackBtn" type="button">Dealer-</button>
-        <button class="quickBtn blind-up-btn" id="dealerNextBtn" type="button">Dealer+</button>
+        <button class="quickBtn blind-up-btn dealer-move-btn" id="dealerBackBtn" type="button"><span class="dealer-mini-token">D</span><span>-</span></button>
+        <button class="quickBtn blind-up-btn dealer-move-btn" id="dealerNextBtn" type="button"><span class="dealer-mini-token">D</span><span>+</span></button>
         <button class="quickBtn blind-up-btn" id="blindDownBtn" type="button">Level-</button>
         <button class="quickBtn blind-up-btn" id="blindUpBtn" type="button">Level+</button>
       </div>
@@ -129,6 +139,41 @@
     </div>
 
     <div id="tableErr" class="err">❌ Wrong PIN</div>
+  </div>
+</div>
+
+<!-- TOUR MODAL -->
+<div id="tourModal" class="modal">
+  <div class="box">
+    <div class="top">
+      <div class="title">Tour Login</div>
+      <button id="tourClose" class="close" type="button">âœ•</button>
+    </div>
+
+    <select id="tourSelect">
+      <option value="">Loadingâ€¦</option>
+    </select>
+
+    <div class="pin-display" id="tourPinDots" style="margin-top:12px">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+
+    <div class="keypad">
+      <button onclick="tourPress(1)">1</button>
+      <button onclick="tourPress(2)">2</button>
+      <button onclick="tourPress(3)">3</button>
+      <button onclick="tourPress(4)">4</button>
+      <button onclick="tourPress(5)">5</button>
+      <button onclick="tourPress(6)">6</button>
+      <button onclick="tourPress(7)">7</button>
+      <button onclick="tourPress(8)">8</button>
+      <button onclick="tourPress(9)">9</button>
+      <button onclick="tourBack()">â†</button>
+      <button onclick="tourPress(0)">0</button>
+      <button onclick="submitTourLogin()">OK</button>
+    </div>
+
+    <div id="tourErr" class="err">âŒ Wrong PIN</div>
   </div>
 </div>
 

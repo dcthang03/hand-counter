@@ -103,6 +103,9 @@ const state = {
   TABLE_UID: null,
   TABLE_NAME: null,
   tablePin: "",
+  TOURNAMENT_ID: null,
+  TOURNAMENT_NAME: null,
+  tourPin: "",
 
   DEALER_UID: null,
   DEALER_NAME: null,
@@ -155,10 +158,19 @@ const dealerBtn = document.getElementById("dealerBtn");
 const dealerBtnText = document.getElementById("dealerBtnText");
 const dealerProgress = document.getElementById("dealerProgress");
 
+const tourBtn = document.getElementById("tourBtn");
+const tourBtnText = document.getElementById("tourBtnText");
+const tourProgress = document.getElementById("tourProgress");
+
 const tableModal = document.getElementById("tableModal");
 const tableClose = document.getElementById("tableClose");
 const tableSelect = document.getElementById("tableSelect");
 const tableErrEl = document.getElementById("tableErr");
+
+const tourModal = document.getElementById("tourModal");
+const tourClose = document.getElementById("tourClose");
+const tourSelect = document.getElementById("tourSelect");
+const tourErrEl = document.getElementById("tourErr");
 
 const dealerModal = document.getElementById("dealerModal");
 const dealerClose = document.getElementById("dealerClose");
@@ -168,6 +180,9 @@ const dealerErrEl = document.getElementById("dealerErr");
 /* ===== Helpers (login gating) ===== */
 function isTableLoggedIn() {
   return !!state.TABLE_UID;
+}
+function isTournamentLoggedIn() {
+  return !!state.TOURNAMENT_ID;
 }
 function isDealerLoggedIn() {
   return !!state.DEALER_UID;
@@ -192,10 +207,10 @@ function setTableUI() {
 }
 
 function setDealerUI() {
-  if (!isTableLoggedIn()) {
+  if (!isTableLoggedIn() || !isTournamentLoggedIn()) {
     dealerBtn.classList.remove("green", "red");
     dealerBtn.classList.add("gray");
-    dealerBtnText.textContent = "Table Login";
+    dealerBtnText.textContent = !isTableLoggedIn() ? "Table Login" : "Tour Login";
     return;
   }
   if (isDealerLoggedIn()) {
@@ -206,6 +221,24 @@ function setDealerUI() {
     dealerBtn.classList.remove("green", "gray");
     dealerBtn.classList.add("red");
     dealerBtnText.textContent = "Dealer Login";
+  }
+}
+
+function setTourUI() {
+  if (!isTableLoggedIn()) {
+    tourBtn.classList.remove("green", "red");
+    tourBtn.classList.add("gray");
+    tourBtnText.textContent = "Table Login";
+    return;
+  }
+  if (isTournamentLoggedIn()) {
+    tourBtn.classList.remove("red", "gray");
+    tourBtn.classList.add("green");
+    tourBtnText.textContent = state.TOURNAMENT_NAME || state.TOURNAMENT_ID || "Tournament";
+  } else {
+    tourBtn.classList.remove("green", "gray");
+    tourBtn.classList.add("red");
+    tourBtnText.textContent = "Tour Login";
   }
 }
 
@@ -230,8 +263,30 @@ tableModal.addEventListener("click", (e) => {
   if (e.target === tableModal) closeTableModal();
 });
 
-function openDealerModal() {
+function openTourModal() {
   if (!requireTable()) return;
+  tourModal.style.display = "flex";
+  resetTourModalUI();
+  loadTournamentsForModal();
+}
+function closeTourModal() {
+  tourModal.style.display = "none";
+  resetTourModalUI();
+}
+function resetTourModalUI() {
+  tourSelect.value = "";
+  tourSelect.innerHTML = `<option value="">Loadingâ€¦</option>`;
+  state.tourPin = "";
+  setDots("tourPinDots", 0);
+  tourErrEl.style.display = "none";
+}
+tourClose.addEventListener("click", closeTourModal);
+tourModal.addEventListener("click", (e) => {
+  if (e.target === tourModal) closeTourModal();
+});
+
+function openDealerModal() {
+  if (!requireTournament()) return;
   dealerModal.style.display = "flex";
   resetDealerModalUI();
   loadDealersForModal();
@@ -258,8 +313,15 @@ function requireTable() {
   openTableModal();
   return false;
 }
-function requireDealer() {
+function requireTournament() {
   if (!requireTable()) return false;
+  if (isTournamentLoggedIn()) return true;
+  alert("Tour login required");
+  openTourModal();
+  return false;
+}
+function requireDealer() {
+  if (!requireTournament()) return false;
   if (isDealerLoggedIn()) return true;
   alert("Dealer login required");
   openDealerModal();
@@ -286,6 +348,17 @@ function dealerLogout() {
   setDealerUI();
   table.resetHandState();
   table.updateUI();
+}
+
+function tourLogout() {
+  state.TOURNAMENT_ID = null;
+  state.TOURNAMENT_NAME = null;
+  localStorage.removeItem("tournament_id");
+  localStorage.removeItem("tournament_name");
+  Object.keys(state.baseStakeByUid).forEach((k) => delete state.baseStakeByUid[k]);
+  Object.keys(state.stackByUid).forEach((k) => delete state.stackByUid[k]);
+  dealerLogout();
+  setTourUI();
 }
 
 /* ===== TABLE MODAL keypad (must be global for onclick) ===== */
@@ -372,7 +445,7 @@ window.submitTableLogin = async function submitTableLogin() {
   }
 
   if (state.TABLE_UID && state.TABLE_UID !== data.table_uid) {
-    dealerLogout();
+    tourLogout();
   }
 
   state.TABLE_UID = data.table_uid;
@@ -382,14 +455,106 @@ window.submitTableLogin = async function submitTableLogin() {
   localStorage.setItem("table_name", state.TABLE_NAME);
 
   setTableUI();
+  setTourUI();
   setDealerUI();
   await table.startTableSession();
   closeTableModal();
 };
 
+/* ===== TOUR MODAL keypad (must be global for onclick) ===== */
+window.tourPress = function tourPress(n) {
+  if (!requireTable()) return;
+  if (!tourSelect.value) {
+    Sound.error();
+    tourErrEl.style.display = "block";
+    tourErrEl.textContent = "âŒ Select tournament first";
+    return;
+  }
+  tourErrEl.style.display = "none";
+  if (state.tourPin.length >= 4) return;
+  state.tourPin += String(n);
+  setDots("tourPinDots", state.tourPin.length);
+  if (state.tourPin.length === 4) window.submitTourLogin();
+};
+
+window.tourBack = function tourBack() {
+  tourErrEl.style.display = "none";
+  state.tourPin = state.tourPin.slice(0, -1);
+  setDots("tourPinDots", state.tourPin.length);
+};
+
+async function loadTournamentsForModal() {
+  try {
+    const { data, error } = await sbClient.from("tournaments").select("tournament_id").order("tournament_id", { ascending: true });
+    if (error) {
+      console.error("loadTournaments error:", error);
+      tourSelect.innerHTML = `<option value="">Load failed</option>`;
+      return;
+    }
+    const rows = data || [];
+    if (!rows.length) {
+      tourSelect.innerHTML = `<option value="">No tournaments</option>`;
+      return;
+    }
+    tourSelect.innerHTML =
+      `<option value="">â€” Select tournament â€”</option>` +
+      rows.map((r) => `<option value="${String(r.tournament_id)}">${String(r.tournament_id)}</option>`).join("");
+  } catch (e) {
+    console.error("loadTournaments exception:", e);
+    tourSelect.innerHTML = `<option value="">Load failed</option>`;
+  }
+}
+
+window.submitTourLogin = async function submitTourLogin() {
+  if (!requireTable()) return;
+  const tournamentId = tourSelect.value;
+  if (!tournamentId) return;
+  if (state.tourPin.length !== 4) return;
+
+  const { data, error } = await sbClient
+    .from("tournaments")
+    .select("tournament_id, pin")
+    .eq("tournament_id", tournamentId)
+    .single();
+
+  if (error || !data) {
+    Sound.error();
+    tourErrEl.textContent = "âŒ Tournament not found";
+    tourErrEl.style.display = "block";
+    state.tourPin = "";
+    setDots("tourPinDots", 0);
+    return;
+  }
+
+  if (String(data.pin ?? "") !== String(state.tourPin)) {
+    Sound.error();
+    tourErrEl.textContent = "âŒ Wrong PIN";
+    tourErrEl.style.display = "block";
+    state.tourPin = "";
+    setDots("tourPinDots", 0);
+    return;
+  }
+
+  if (state.TOURNAMENT_ID && state.TOURNAMENT_ID !== String(data.tournament_id)) {
+    dealerLogout();
+  }
+
+  state.TOURNAMENT_ID = String(data.tournament_id);
+  state.TOURNAMENT_NAME = String(data.tournament_id);
+  localStorage.setItem("tournament_id", state.TOURNAMENT_ID);
+  localStorage.setItem("tournament_name", state.TOURNAMENT_NAME);
+  Object.keys(state.baseStakeByUid).forEach((k) => delete state.baseStakeByUid[k]);
+  Object.keys(state.stackByUid).forEach((k) => delete state.stackByUid[k]);
+  await table.refreshStakesForOccupiedSeats();
+
+  setTourUI();
+  setDealerUI();
+  closeTourModal();
+};
+
 /* ===== DEALER MODAL keypad (must be global for onclick) ===== */
 window.dealerPress = function dealerPress(n) {
-  if (!requireTable()) return;
+  if (!requireTournament()) return;
 
   if (!dealerSelect.value) {
     Sound.error();
@@ -432,7 +597,7 @@ async function loadDealersForModal() {
 }
 
 window.submitDealerLogin = async function submitDealerLogin() {
-  if (!requireTable()) return;
+  if (!requireTournament()) return;
   if (!dealerSelect.value) return;
   if (state.dealerPin.length !== 4) return;
 
@@ -507,6 +672,35 @@ function stopTableHold(trigger = false) {
   }
 }
 
+let tourHoldTimer = null;
+let tourHoldStart = 0;
+
+function startTourHold() {
+  if (tourHoldTimer) return;
+  tourHoldStart = performance.now();
+  tourBtn.classList.add("holding");
+  tourProgress.style.width = "0%";
+
+  tourHoldTimer = setInterval(() => {
+    const t = performance.now() - tourHoldStart;
+    const pct = Math.min(100, (t / HOLD_TIME) * 100);
+    tourProgress.style.width = pct.toFixed(0) + "%";
+    if (t >= HOLD_TIME) stopTourHold(true);
+  }, 16);
+}
+function stopTourHold(trigger = false) {
+  if (tourHoldTimer) {
+    clearInterval(tourHoldTimer);
+    tourHoldTimer = null;
+  }
+  tourBtn.classList.remove("holding");
+  tourProgress.style.width = "0%";
+
+  if (trigger && isTournamentLoggedIn()) {
+    if (confirm(`Logout tournament ${state.TOURNAMENT_NAME || state.TOURNAMENT_ID}?`)) tourLogout();
+  }
+}
+
 let dealerHoldTimer = null;
 let dealerHoldStart = 0;
 
@@ -548,6 +742,19 @@ tableBtn.addEventListener("click", () => {
   if (!isTableLoggedIn()) openTableModal();
 });
 
+/* bind tour btn */
+tourBtn.addEventListener("pointerdown", (e) => {
+  if (e.button !== undefined && e.button !== 0) return;
+  startTourHold();
+});
+tourBtn.addEventListener("pointerup", () => stopTourHold(false));
+tourBtn.addEventListener("pointerleave", () => stopTourHold(false));
+tourBtn.addEventListener("pointercancel", () => stopTourHold(false));
+tourBtn.addEventListener("click", () => {
+  if (!isTableLoggedIn()) return openTableModal();
+  if (!isTournamentLoggedIn()) openTourModal();
+});
+
 /* bind dealer btn */
 dealerBtn.addEventListener("pointerdown", (e) => {
   if (e.button !== undefined && e.button !== 0) return;
@@ -558,6 +765,7 @@ dealerBtn.addEventListener("pointerleave", () => stopDealerHold(false));
 dealerBtn.addEventListener("pointercancel", () => stopDealerHold(false));
 dealerBtn.addEventListener("click", () => {
   if (!isTableLoggedIn()) return openTableModal();
+  if (!isTournamentLoggedIn()) return openTourModal();
   if (!isDealerLoggedIn()) openDealerModal();
 });
 
@@ -581,7 +789,7 @@ async function tableLogout() {
   localStorage.removeItem("table_uid");
   localStorage.removeItem("table_name");
 
-  dealerLogout();
+  tourLogout();
 
   for (let i = 1; i <= SEAT_COUNT; i++) {
     state.seatState[i] = { player_uid: null };
@@ -593,6 +801,7 @@ async function tableLogout() {
   table.renderSeats();
 
   setTableUI();
+  setTourUI();
   setDealerUI();
 
   setTimeout(openTableModal, 120);
@@ -618,19 +827,28 @@ async function tableLogout() {
       }
     } catch (e) {}
 
+    const tid = localStorage.getItem("tournament_id");
+    const tname = localStorage.getItem("tournament_name");
+    if (tid) {
+      state.TOURNAMENT_ID = tid;
+      state.TOURNAMENT_NAME = tname || tid;
+    }
+
     const duid = localStorage.getItem("dealer_uid");
     const dname = localStorage.getItem("dealer_name");
-    if (duid) {
+    if (duid && state.TOURNAMENT_ID) {
       state.DEALER_UID = duid;
       state.DEALER_NAME = dname || duid;
     }
 
     setTableUI();
+    setTourUI();
     setDealerUI();
     table.updateUI();
     await table.startTableSession();
   } else {
     setTableUI();
+    setTourUI();
     setDealerUI();
     table.updateUI();
     setTimeout(openTableModal, 120);
